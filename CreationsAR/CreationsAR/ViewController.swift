@@ -15,7 +15,12 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     @IBOutlet var sceneView: ARSCNView!
     
     var time = 0.0
+    let edgeLength: Float = 0.1
     var rootPosition: SCNVector3? = nil
+    
+    var currentDesign: String = ""
+    
+    let chars64 = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "a", "s", "d", "f", "g", "h", "j", "k", "l", "z", "x", "c", "v", "b", "n", "m", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", "Z", "X", "C", "V", "B", "N", "M", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "+", "/"]
     
     
     override func viewDidLoad() {
@@ -40,6 +45,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     //didTap function for when gestures are regonized byU ITapGestureRecognizer above
     @objc
     func didTap(_ gesture: UITapGestureRecognizer) {
+        
+        
         
         let sceneViewTappedOn = gesture.view as! ARSCNView
         let touchCoordinates = gesture.location(in: sceneViewTappedOn)
@@ -69,21 +76,61 @@ class ViewController: UIViewController, ARSCNViewDelegate {
                 let rPos = rootPosition!
                 //MOVE X into coordinate latice
                 let Xoffset = position.x - rPos.x
-                let diffX = Xoffset.truncatingRemainder(dividingBy: 0.1)
+                let diffX = Xoffset.truncatingRemainder(dividingBy: edgeLength)
                 //use diff and offset to move position to nearest latice point
                 position.x -= diffX
                 //MOVE Y into coordinate latice
                 let Yoffset = position.y - rPos.y
-                let diffY = Yoffset.truncatingRemainder(dividingBy: 0.1)
+                let diffY = Yoffset.truncatingRemainder(dividingBy: edgeLength)
                 //use diff and offset to move position to nearest latice point
                 position.y -= diffY
                 //MOVE Z into coordinate latice
                 let Zoffset = position.z - rPos.z
-                let diffZ = Zoffset.truncatingRemainder(dividingBy: 0.1)
+                let diffZ = Zoffset.truncatingRemainder(dividingBy: edgeLength)
                 //use diff and offset to move position to nearest latice point
                 position.z -= diffZ
+                //STORE position in String
+                let storeStr: String = getStringOfPosition(position)
+                if(storeStr != "ERROR: OUT OF RANGE"){
+                    currentDesign += storeStr
+                } else {
+                    print("Error: OUT OF RANGE")
+                    return
+                }
+//                //get distance
+//                var laticeNumX=Xoffset - diffX
+//                var laticeNumY=Yoffset - diffY
+//                var laticeNumZ=Zoffset - diffZ
+//                //standardize units tall to integers (edge length --> 1)
+//                laticeNumX *= 1.0/edgeLength
+//                laticeNumY *= 1.0/edgeLength
+//                laticeNumZ *= 1.0/edgeLength
+//                //cast all to ints
+//                var intX = Int(laticeNumX)
+//                var intY = Int(laticeNumY)
+//                var intZ = Int(laticeNumZ)
+//                //add 31 to make everything positive (-31 --> 0)
+//                intX += 31
+//                intY += 31
+//                intZ += 31
+//                if(intX < 0 || intX > 63 || intY < 0 || intY > 63 || intZ < 0 || intZ > 63){
+//                    //don't make cube if it is outside of of the build space
+//                    print("Cube out of range: (x/y/z)")
+//                    print(intX)
+//                    print(intY)
+//                    print(intZ)
+//                    return
+//                }
+//                //store positions with base64 string characters
+//                currentDesign += chars64[intX]
+//                currentDesign += chars64[intY]
+//                currentDesign += chars64[intZ]
+//                currentDesign += "0"
+//
+//                //done
             } else {
                 rootPosition = position
+                currentDesign += "YYY0"
             }
                 
             //call method to add item
@@ -102,21 +149,24 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             //faceIndex now equals one of the values of the enum BoxFace above
             var position = hitTestResult.first?.node.position
             switch faceIndex{
-                case .Front: position?.z += 0.1
-                case .Right: position?.x += 0.1
-                case .Back: position?.z -= 0.1
-                case .Left: position?.x -= 0.1
-                case .Top: position?.y += 0.1
-                case .Bottom: position?.y -= 0.1
+                case .Front: position?.z += edgeLength
+                case .Right: position?.x += edgeLength
+                case .Back: position?.z -= edgeLength
+                case .Left: position?.x -= edgeLength
+                case .Top: position?.y += edgeLength
+                case .Bottom: position?.y -= edgeLength
             }
-            addItemToPosition(position!)
+            //if cube is within bounds of area, add to view
+            if(storeNewCubePosition(position!)){
+                addItemToPosition(position!)
+            }
         }
     
     }
     //put objects into the scene
     func addItemToPosition(_ position: SCNVector3) {
         
-        let box = SCNBox(width: 0.1, height: 0.1, length: 0.1, chamferRadius: 0)
+        let box = SCNBox(width: CGFloat(edgeLength), height: CGFloat(edgeLength), length: CGFloat(edgeLength), chamferRadius: 0)
         
         let material = SCNMaterial()
         material.diffuse.contents = UIImage(named: "art.scnassets/brick.png")
@@ -126,12 +176,102 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         node.position = position
         self.sceneView.scene.rootNode.addChildNode(node)
         
+        print(currentDesign)
+        
+    }
+    //find integer latice position of the new cube
+    func storeNewCubePosition(_ position: SCNVector3) -> Bool {
+        
+        //UNWRAP optional vector: rootPosition
+        let rPos = rootPosition! //force unwrap won't fail as it cannot be null to get to this point
+        //GET relative X position
+        let Xoffset = position.x - rPos.x
+        //GET relative Y position
+        let Yoffset = position.y - rPos.y
+        //GET relative Z position
+        let Zoffset = position.z - rPos.z
+        //Calculate and store position in String
+        //get distance
+        var laticeNumX=Xoffset
+        var laticeNumY=Yoffset
+        var laticeNumZ=Zoffset
+        //standardize units tall to integers (edge length --> 1)
+        laticeNumX *= 1.0/edgeLength
+        laticeNumY *= 1.0/edgeLength
+        laticeNumZ *= 1.0/edgeLength
+        //cast all to ints
+        var intX = Int(laticeNumX)
+        var intY = Int(laticeNumY)
+        var intZ = Int(laticeNumZ)
+        //add 31 to make everything positive (-31 --> 0)
+        intX += 31
+        intY += 31
+        intZ += 31
+        if(intX < 0 || intX > 63 || intY < 0 || intY > 63 || intZ < 0 || intZ > 63){
+            //don't make cube if it is outside of of the build space
+            print("Cube out of range: (x/y/z)")
+            print(intX)
+            print(intY)
+            print(intZ)
+            return false
+        }
+        //store positions with base64 string characters
+        currentDesign += chars64[intX]
+        currentDesign += chars64[intY]
+        currentDesign += chars64[intZ]
+        currentDesign += "0"
+        //done
+        return true
+    }
+    //get String representation of position
+    func getStringOfPosition(_ position: SCNVector3) -> String {
+        
+        //UNWRAP optional vector: rootPosition
+        let rPos = rootPosition! //force unwrap won't fail as it cannot be null to get to this point
+        //GET relative X position
+        let Xoffset = position.x - rPos.x
+        //GET relative Y position
+        let Yoffset = position.y - rPos.y
+        //GET relative Z position
+        let Zoffset = position.z - rPos.z
+        //Calculate and store position in String
+        //get distance
+        var laticeNumX=Xoffset
+        var laticeNumY=Yoffset
+        var laticeNumZ=Zoffset
+        //standardize units tall to integers (edge length --> 1)
+        laticeNumX *= 1.0/edgeLength
+        laticeNumY *= 1.0/edgeLength
+        laticeNumZ *= 1.0/edgeLength
+        //cast all to ints
+        var intX = Int(laticeNumX)
+        var intY = Int(laticeNumY)
+        var intZ = Int(laticeNumZ)
+        //add 31 to make everything positive (-31 --> 0)
+        intX += 31
+        intY += 31
+        intZ += 31
+        if(intX < 0 || intX > 63 || intY < 0 || intY > 63 || intZ < 0 || intZ > 63){
+            //don't make cube if it is outside of of the build space
+            print("Cube out of range: (x/y/z)")
+            print(intX)
+            print(intY)
+            print(intZ)
+            return "ERROR: OUT OF RANGE"
+        }
+        //convert to String with base64 string characters
+        var str: String = ""
+        str += chars64[intX]
+        str += chars64[intY]
+        str += chars64[intZ]
+        str += "0"
+        return str
     }
     //delete SCNNode longPressed on
     @objc
     func didLongTap(_ gesture: UILongPressGestureRecognizer) {
         
-        if(NSDate().timeIntervalSince1970 - 0.25 > time){
+        if(gesture.state == UIGestureRecognizer.State.began && NSDate().timeIntervalSince1970 - 0.25 > time){
             time = NSDate().timeIntervalSince1970
             
             let sceneViewTappedOn = gesture.view as! ARSCNView
@@ -139,6 +279,14 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             let hitTestResult = sceneView.hitTest(touchCoordinates, options: nil)
             
             guard let node = hitTestResult.first?.node else { return }
+            
+            //remove node from string storage
+            let position: SCNVector3 = node.position
+            let str: String = getStringOfPosition(position)
+            print("Str: " + str)
+            if(currentDesign.contains(str)){
+                currentDesign = currentDesign.replacingOccurrences(of: str, with: "")
+            }
             
             node.removeFromParentNode()
         }
