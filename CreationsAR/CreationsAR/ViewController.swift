@@ -15,7 +15,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     @IBOutlet var sceneView: ARSCNView!
     
     var time = 0.0
-    let edgeLength: Float = 0.1
+    let edgeLength: Float = 0.04
     var rootPosition: SCNVector3? = nil
     
     var currentDesign: String = ""
@@ -45,7 +45,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     //didTap function for when gestures are regonized byU ITapGestureRecognizer above
     @objc
     func didTap(_ gesture: UITapGestureRecognizer) {
-        
+        print(currentDesign)
         
         
         let sceneViewTappedOn = gesture.view as! ARSCNView
@@ -91,43 +91,16 @@ class ViewController: UIViewController, ARSCNViewDelegate {
                 position.z -= diffZ
                 //STORE position in String
                 let storeStr: String = getStringOfPosition(position)
-                if(storeStr != "ERROR: OUT OF RANGE"){
+                if(storeStr != "ERROR: OUT OF RANGE" && !currentDesign.contains(storeStr)){
                     currentDesign += storeStr
                 } else {
-                    print("Error: OUT OF RANGE")
+                    if(currentDesign.contains(storeStr)){
+//                        print("In a block: " + storeStr)
+                    } else {
+                        print("Error: OUT OF RANGE")
+                    }
                     return
                 }
-//                //get distance
-//                var laticeNumX=Xoffset - diffX
-//                var laticeNumY=Yoffset - diffY
-//                var laticeNumZ=Zoffset - diffZ
-//                //standardize units tall to integers (edge length --> 1)
-//                laticeNumX *= 1.0/edgeLength
-//                laticeNumY *= 1.0/edgeLength
-//                laticeNumZ *= 1.0/edgeLength
-//                //cast all to ints
-//                var intX = Int(laticeNumX)
-//                var intY = Int(laticeNumY)
-//                var intZ = Int(laticeNumZ)
-//                //add 31 to make everything positive (-31 --> 0)
-//                intX += 31
-//                intY += 31
-//                intZ += 31
-//                if(intX < 0 || intX > 63 || intY < 0 || intY > 63 || intZ < 0 || intZ > 63){
-//                    //don't make cube if it is outside of of the build space
-//                    print("Cube out of range: (x/y/z)")
-//                    print(intX)
-//                    print(intY)
-//                    print(intZ)
-//                    return
-//                }
-//                //store positions with base64 string characters
-//                currentDesign += chars64[intX]
-//                currentDesign += chars64[intY]
-//                currentDesign += chars64[intZ]
-//                currentDesign += "0"
-//
-//                //done
             } else {
                 rootPosition = position
                 currentDesign += "YYY0"
@@ -146,19 +119,30 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
         
         if let faceIndex = BoxFace(rawValue: hitTestResult.first?.faceIndex ?? -1){
+//            print("Adding to Face: ")
             //faceIndex now equals one of the values of the enum BoxFace above
             var position = hitTestResult.first?.node.position
             switch faceIndex{
                 case .Front: position?.z += edgeLength
+//                print("Front")
                 case .Right: position?.x += edgeLength
+//                print("Right")
                 case .Back: position?.z -= edgeLength
+//                print("Back")
                 case .Left: position?.x -= edgeLength
+//                print("Left")
                 case .Top: position?.y += edgeLength
+//                print("Top")
                 case .Bottom: position?.y -= edgeLength
+//                print("Bottom")
             }
             //if cube is within bounds of area, add to view
-            if(storeNewCubePosition(position!)){
-                addItemToPosition(position!)
+            if(!currentDesign.contains(getStringOfPosition(position!))){
+                if(storeNewCubePosition(position!)){
+                    addItemToPosition(position!)
+                }
+            } else {
+//                print("In Block (adding on face): " + getStringOfPosition(position!))
             }
         }
     
@@ -176,52 +160,23 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         node.position = position
         self.sceneView.scene.rootNode.addChildNode(node)
         
-        print(currentDesign)
-        
+//        print(currentDesign)
+            
     }
     //find integer latice position of the new cube
     func storeNewCubePosition(_ position: SCNVector3) -> Bool {
         
-        //UNWRAP optional vector: rootPosition
-        let rPos = rootPosition! //force unwrap won't fail as it cannot be null to get to this point
-        //GET relative X position
-        let Xoffset = position.x - rPos.x
-        //GET relative Y position
-        let Yoffset = position.y - rPos.y
-        //GET relative Z position
-        let Zoffset = position.z - rPos.z
-        //Calculate and store position in String
-        //get distance
-        var laticeNumX=Xoffset
-        var laticeNumY=Yoffset
-        var laticeNumZ=Zoffset
-        //standardize units tall to integers (edge length --> 1)
-        laticeNumX *= 1.0/edgeLength
-        laticeNumY *= 1.0/edgeLength
-        laticeNumZ *= 1.0/edgeLength
-        //cast all to ints
-        var intX = Int(laticeNumX)
-        var intY = Int(laticeNumY)
-        var intZ = Int(laticeNumZ)
-        //add 31 to make everything positive (-31 --> 0)
-        intX += 31
-        intY += 31
-        intZ += 31
-        if(intX < 0 || intX > 63 || intY < 0 || intY > 63 || intZ < 0 || intZ > 63){
-            //don't make cube if it is outside of of the build space
-            print("Cube out of range: (x/y/z)")
-            print(intX)
-            print(intY)
-            print(intZ)
+        let str = getStringOfPosition(position)
+        if(str != "ERROR: OUT OF RANGE"){
+            //store positions with string from getStringOfPosition()
+            currentDesign += str
+            //done
+            return true
+        } else {
+            //cube was out of range
             return false
         }
-        //store positions with base64 string characters
-        currentDesign += chars64[intX]
-        currentDesign += chars64[intY]
-        currentDesign += chars64[intZ]
-        currentDesign += "0"
-        //done
-        return true
+        
     }
     //get String representation of position
     func getStringOfPosition(_ position: SCNVector3) -> String {
@@ -243,10 +198,10 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         laticeNumX *= 1.0/edgeLength
         laticeNumY *= 1.0/edgeLength
         laticeNumZ *= 1.0/edgeLength
-        //cast all to ints
-        var intX = Int(laticeNumX)
-        var intY = Int(laticeNumY)
-        var intZ = Int(laticeNumZ)
+        //cast all to ints - Round them though
+        var intX = Int(round(laticeNumX))
+        var intY = Int(round(laticeNumY))
+        var intZ = Int(round(laticeNumZ))
         //add 31 to make everything positive (-31 --> 0)
         intX += 31
         intY += 31
@@ -254,9 +209,9 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         if(intX < 0 || intX > 63 || intY < 0 || intY > 63 || intZ < 0 || intZ > 63){
             //don't make cube if it is outside of of the build space
             print("Cube out of range: (x/y/z)")
-            print(intX)
-            print(intY)
-            print(intZ)
+//            print(intX)
+//            print(intY)
+//            print(intZ)
             return "ERROR: OUT OF RANGE"
         }
         //convert to String with base64 string characters
@@ -271,7 +226,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     @objc
     func didLongTap(_ gesture: UILongPressGestureRecognizer) {
         
-        if(gesture.state == UIGestureRecognizer.State.began && NSDate().timeIntervalSince1970 - 0.25 > time){
+        if(/*gesture.state == UIGestureRecognizer.State.began && */NSDate().timeIntervalSince1970 - 0.25 > time){
             time = NSDate().timeIntervalSince1970
             
             let sceneViewTappedOn = gesture.view as! ARSCNView
@@ -283,7 +238,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             //remove node from string storage
             let position: SCNVector3 = node.position
             let str: String = getStringOfPosition(position)
-            print("Str: " + str)
+//            print("Str: " + str)
             if(currentDesign.contains(str)){
                 currentDesign = currentDesign.replacingOccurrences(of: str, with: "")
             }
@@ -291,6 +246,12 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             node.removeFromParentNode()
         }
         
+    }
+    //build creations from String
+    func loadCreationFromString(_ design: String){
+        for char in design {
+            
+        }
     }
     
     override func viewWillAppear(_ animated: Bool) {
