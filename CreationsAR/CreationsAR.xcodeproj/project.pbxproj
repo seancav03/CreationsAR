@@ -15,6 +15,7 @@
 		1454D97623959D4C007A253D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 1454D97423959D4C007A253D /* LaunchScreen.storyboard */; };
 		1454D98123959D4D007A253D /* CreationsARTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1454D98023959D4D007A253D /* CreationsARTests.swift */; };
 		1454D98C23959D4D007A253D /* CreationsARUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1454D98B23959D4D007A253D /* CreationsARUITests.swift */; };
+		1454D99A23A1AB2A007A253D /* MenuViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1454D99923A1AB2A007A253D /* MenuViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -49,6 +50,7 @@
 		1454D98723959D4D007A253D /* CreationsARUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CreationsARUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1454D98B23959D4D007A253D /* CreationsARUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreationsARUITests.swift; sourceTree = "<group>"; };
 		1454D98D23959D4D007A253D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		1454D99923A1AB2A007A253D /* MenuViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -106,6 +108,7 @@
 				1454D97223959D4C007A253D /* Assets.xcassets */,
 				1454D97423959D4C007A253D /* LaunchScreen.storyboard */,
 				1454D97723959D4C007A253D /* Info.plist */,
+				1454D99923A1AB2A007A253D /* MenuViewController.swift */,
 			);
 			path = CreationsAR;
 			sourceTree = "<group>";
@@ -261,6 +264,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1454D96E23959D45007A253D /* ViewController.swift in Sources */,
+				1454D99A23A1AB2A007A253D /* MenuViewController.swift in Sources */,
 				1454D96A23959D45007A253D /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

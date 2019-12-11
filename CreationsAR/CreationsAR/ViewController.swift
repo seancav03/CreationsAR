@@ -20,7 +20,13 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     
     var currentDesign: String = ""
     
-    let chars64 = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "a", "s", "d", "f", "g", "h", "j", "k", "l", "z", "x", "c", "v", "b", "n", "m", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", "Z", "X", "C", "V", "B", "N", "M", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "+", "/"]
+    let chars64: [Character] = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "a", "s", "d", "f", "g", "h", "j", "k", "l", "z", "x", "c", "v", "b", "n", "m", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", "Z", "X", "C", "V", "B", "N", "M", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "+", "/"]
+    
+    //array of all available textures
+    let textures: [String] = ["art.scnassets/brick.png", "art.scnassets/RedPaint.png", "art.scnassets/GreenPaint.png", "art.scnassets/BluePaint.png"]
+    var selectedTexture: Int = 0
+    
+    @IBOutlet weak var currentBlock: UIImageView!
     
     
     override func viewDidLoad() {
@@ -41,12 +47,22 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         longTapGesture.allowableMovement = 5
         sceneView.addGestureRecognizer(longTapGesture)
         
+        //add right swipe detection for changing block material to the right
+        let swipeGestureRight = UISwipeGestureRecognizer(target: self, action: #selector(didSwipeRight(_:)))
+        sceneView.addGestureRecognizer(swipeGestureRight)
+        
+        //add left swipe detection for changing block material to the left
+        let swipeGestureLeft = UISwipeGestureRecognizer(target: self, action: #selector(didSwipeLeft(_:)))
+        swipeGestureLeft.direction = UISwipeGestureRecognizer.Direction.left
+        sceneView.addGestureRecognizer(swipeGestureLeft)
+        
+        //Current Block Desplay
+        currentBlock.image = UIImage(named: textures[selectedTexture])
+        
     }
     //didTap function for when gestures are regonized byU ITapGestureRecognizer above
     @objc
     func didTap(_ gesture: UITapGestureRecognizer) {
-        print(currentDesign)
-        
         
         let sceneViewTappedOn = gesture.view as! ARSCNView
         let touchCoordinates = gesture.location(in: sceneViewTappedOn)
@@ -79,35 +95,62 @@ class ViewController: UIViewController, ARSCNViewDelegate {
                 let diffX = Xoffset.truncatingRemainder(dividingBy: edgeLength)
                 //use diff and offset to move position to nearest latice point
                 position.x -= diffX
+                //round if closer to the father latice point
+                if(abs(diffX) > edgeLength/2){
+                    if(diffX < 0){
+                        position.x -= edgeLength
+                    } else {
+                        position.x += edgeLength
+                    }
+                }
                 //MOVE Y into coordinate latice
                 let Yoffset = position.y - rPos.y
                 let diffY = Yoffset.truncatingRemainder(dividingBy: edgeLength)
                 //use diff and offset to move position to nearest latice point
                 position.y -= diffY
+                //round if closer to the father latice point
+                if(abs(diffY) > edgeLength/2){
+                    if(diffY < 0){
+                        position.y -= edgeLength
+                    } else {
+                        position.y += edgeLength
+                    }
+                }
                 //MOVE Z into coordinate latice
                 let Zoffset = position.z - rPos.z
                 let diffZ = Zoffset.truncatingRemainder(dividingBy: edgeLength)
                 //use diff and offset to move position to nearest latice point
                 position.z -= diffZ
+                //round if closer to the father latice point
+                if(abs(diffZ) > edgeLength/2){
+                    if(diffZ < 0){
+                        position.z -= edgeLength
+                    } else {
+                        position.z += edgeLength
+                    }
+                }
                 //STORE position in String
                 let storeStr: String = getStringOfPosition(position)
-                if(storeStr != "ERROR: OUT OF RANGE" && !currentDesign.contains(storeStr)){
+                var checkerString2: String = getStringOfPosition(position)
+                checkerString2.removeLast()
+                if(storeStr != "ERROR: OUT OF RANGE" && !containsInFrame(design: currentDesign, subStr: checkerString2)){
                     currentDesign += storeStr
                 } else {
-                    if(currentDesign.contains(storeStr)){
+//                    if(currentDesign.contains(storeStr)){
 //                        print("In a block: " + storeStr)
-                    } else {
-                        print("Error: OUT OF RANGE")
-                    }
+//                    } else {
+//                        print("Error: OUT OF RANGE")
+//                    }
                     return
                 }
             } else {
                 rootPosition = position
+                
                 currentDesign += "YYY0"
             }
                 
             //call method to add item
-            addItemToPosition(position)
+            addItemToPosition(position: position, texture: selectedTexture)
             return
         }
         
@@ -137,9 +180,11 @@ class ViewController: UIViewController, ARSCNViewDelegate {
 //                print("Bottom")
             }
             //if cube is within bounds of area, add to view
-            if(!currentDesign.contains(getStringOfPosition(position!))){
+            var checkerString: String = getStringOfPosition(position!)
+            checkerString.removeLast()
+            if(!containsInFrame(design: currentDesign, subStr: checkerString)){
                 if(storeNewCubePosition(position!)){
-                    addItemToPosition(position!)
+                    addItemToPosition(position: position!, texture: selectedTexture)
                 }
             } else {
 //                print("In Block (adding on face): " + getStringOfPosition(position!))
@@ -148,19 +193,17 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     
     }
     //put objects into the scene
-    func addItemToPosition(_ position: SCNVector3) {
+    func addItemToPosition(position: SCNVector3, texture: Int) {
         
         let box = SCNBox(width: CGFloat(edgeLength), height: CGFloat(edgeLength), length: CGFloat(edgeLength), chamferRadius: 0)
         
         let material = SCNMaterial()
-        material.diffuse.contents = UIImage(named: "art.scnassets/brick.png")
+        material.diffuse.contents = UIImage(named: textures[texture])
         box.materials = [material]
         
         let node = SCNNode(geometry: box)
         node.position = position
         self.sceneView.scene.rootNode.addChildNode(node)
-        
-//        print(currentDesign)
             
     }
     //find integer latice position of the new cube
@@ -208,7 +251,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         intZ += 31
         if(intX < 0 || intX > 63 || intY < 0 || intY > 63 || intZ < 0 || intZ > 63){
             //don't make cube if it is outside of of the build space
-            print("Cube out of range: (x/y/z)")
+//            print("Cube out of range: (x/y/z)")
 //            print(intX)
 //            print(intY)
 //            print(intZ)
@@ -216,11 +259,57 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
         //convert to String with base64 string characters
         var str: String = ""
-        str += chars64[intX]
-        str += chars64[intY]
-        str += chars64[intZ]
-        str += "0"
+        str += String(chars64[intX])
+        str += String(chars64[intY])
+        str += String(chars64[intZ])
+        str += String(selectedTexture)
         return str
+    }
+    //finds if the design string contains the subStr in a 4 character frame
+    func containsInFrame(design: String, subStr: String) -> Bool {
+        var contains: Bool = false
+        var i = 0
+        var sub: String = ""
+        for char in design {
+            sub += String(char)
+            if(i % 4 == 3) {
+                if(sub == subStr){
+                    contains = true
+                    break
+                }
+                sub.removeLast()
+                if(sub == subStr){
+                    contains = true
+                    break
+                }
+                sub.removeAll()
+            }
+            i+=1
+        }
+        return contains
+    }
+    //finds if the design string contains the subStr in a 4 character frame, and removes all occurences
+    func removeInFrame(design: String, subStr: String) -> String {
+        var newString: String = ""
+        var i = 0
+        var sub: String = ""
+        for char in design {
+            sub += String(char)
+            newString += String(char)
+            if(i % 4 == 3) {
+                sub.removeLast()
+                if(sub == subStr){
+                    //remove that chunk of four
+                    newString.removeLast()
+                    newString.removeLast()
+                    newString.removeLast()
+                    newString.removeLast()
+                }
+                sub.removeAll()
+            }
+            i+=1
+        }
+        return newString
     }
     //delete SCNNode longPressed on
     @objc
@@ -235,22 +324,69 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             
             guard let node = hitTestResult.first?.node else { return }
             
-            //remove node from string storage
-            let position: SCNVector3 = node.position
-            let str: String = getStringOfPosition(position)
-//            print("Str: " + str)
-            if(currentDesign.contains(str)){
-                currentDesign = currentDesign.replacingOccurrences(of: str, with: "")
+            //check if box if being deleted
+            if(node.description.contains("SCNBox")){
+                //remove node from string storage
+                let position: SCNVector3 = node.position
+                var str: String = getStringOfPosition(position)
+                str.removeLast()
+                //remove all occurences (within 4 char frame)
+                currentDesign = removeInFrame(design: currentDesign, subStr: str)
+                
             }
             
             node.removeFromParentNode()
         }
         
     }
+    @objc
+    func didSwipeRight(_ gesture: UISwipeGestureRecognizer) {
+//        print("Swiped Left")
+        if(selectedTexture != textures.count - 1){
+            selectedTexture += 1;
+            //update image
+            currentBlock.image = UIImage(named: textures[selectedTexture])
+        }
+    }
+    @objc
+    func didSwipeLeft(_ gesture: UISwipeGestureRecognizer) {
+//        print("Swiped Right")
+        if(selectedTexture != 0){
+            selectedTexture -= 1;
+            //update image
+            currentBlock.image = UIImage(named: textures[selectedTexture])
+        }
+    }
     //build creations from String
-    func loadCreationFromString(_ design: String){
+    func loadCreationFromString(design: String, rPos: SCNVector3){
+//        print("Loading")
+        var four: [Int] = [ 0, 0, 0, 0]
+        var cntr: Int = 0
         for char in design {
-            
+            for i in 0..<chars64.count {
+                if(char == chars64[i]){
+                    four[cntr] = i
+//                    print("Mod: ", cntr, ", " , i)
+                    break
+                }
+            }
+            if(cntr == 3){
+//                print("Placing at: ")
+//                print(rPos.x, " ", rPos.y, " ", rPos.z)
+                //str hold the 4 char string. Convert to position
+                let posX: Float = rPos.x + Float(four[0]-31)*edgeLength
+                let posY: Float = rPos.y + Float(four[1]-31)*edgeLength
+                let posZ: Float = rPos.z + Float(four[2]-31)*edgeLength
+//                print("x/y/z: ", String(posX), ", ", String(posY), ", ", String(posZ))
+                let material = four[3]
+//                print("material", material)
+                let vexy: SCNVector3 = SCNVector3(CGFloat(posX), CGFloat(posY), CGFloat(posZ))
+                //Try to add item to space
+                addItemToPosition(position: vexy, texture: material)
+                cntr = 0
+            } else {
+                cntr+=1
+            }
         }
     }
     
