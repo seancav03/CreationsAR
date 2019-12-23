@@ -14,10 +14,6 @@ class ViewController: UIViewController, ARSCNViewDelegate {
 
     @IBOutlet var sceneView: ARSCNView!
     
-    let defaults = UserDefaults.standard
-    var arr: [String] = []
-    var reservedNames: [String] = ["savedNames"]
-    
     @IBOutlet weak var loadModel: UIImageView!
     @IBOutlet weak var saveModel: UIImageView!
     
@@ -43,16 +39,6 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         //MARK: SWITCH TO FILES from USER DEFAULTS
         
         super.viewDidLoad()
-        
-        print("++++++++++View Did Load++++++++++")
-        
-        let tArr: [String]? = defaults.stringArray(forKey: "savedNames")
-        if tArr == nil {
-            arr = []
-        } else {
-            arr = tArr!
-        }
-        
         
         // Set the view's delegate
         sceneView.delegate = self
@@ -107,7 +93,16 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         //design is now the String for the returned design
         print("Design Received: " + design)
         //get from userDefaults
-        designToPlace = defaults.string(forKey: design) ?? ""
+        //MARK: CHANGE TO READING THE FILE OF NAME 'design'
+        do {
+            let contents = try String(contentsOfFile: FileManager.documentDirectoryURL.appendingPathComponent(design + ".txt").path)
+            print("Contents of File: " + contents)
+            designToPlace = contents
+            } catch {
+                //failed to read from file
+                print("Failed to read from file:")
+                print("ERROR: \(error)")
+            }
         currentBlock.image = UIImage(named: "art.scnassets/plus.png")
         //clear previous designs
         for childNode in sceneView.scene.rootNode.childNodes {
@@ -133,31 +128,73 @@ class ViewController: UIViewController, ARSCNViewDelegate {
                     print("Inputted Name: ", userText)
                     if(userText != ""){
                         var name = userText
-                        
-                        //update arr with current names list
-                        let tempArr = self.defaults.stringArray(forKey: "savedNames")
-                        if tempArr != nil {
-                            self.arr = tempArr!
-                        } else {
-                            self.arr = []
+                        //remove all unsafe url characters
+                        let unsafeURLCharacters = ["/", ":", ";", "|"]
+                        //Safeing url
+                        name.removeAll(where: { unsafeURLCharacters.contains(String($0)) })
+                        print("Safe Name: ", name)
+                        if(name == ""){
+                            //alert if removing safe characters brought name to an empty string
+                            let alert2 = UIAlertController(title: "Unsafe Name", message: "Try using more standard characters in name", preferredStyle: .alert)
+                            let OK2 = UIAlertAction(title: "OK", style: .default) { (action:UIAlertAction!) in
+                                print("Pressed OK 2")
+                            }
+                            alert2.addAction(OK2)
+                            self.present(alert2, animated: true, completion: nil)
+                            //abort saving
+                            return
                         }
                         
+                        //get all filenames already taken
+                        var arrayOfFileNames: [String] = []
+                        do {
+                            let items = try FileManager.default.contentsOfDirectory(at: FileManager.documentDirectoryURL, includingPropertiesForKeys: nil)
+                            print("Listing Files: ")
+                            for item in items {
+                                print("Found: ", item)
+                                let shorterArr = item.path.split(separator: "/")
+                                var shorter = shorterArr.last!
+                                print("Shorter: ", shorter)
+                                shorter.removeLast(4)
+                                arrayOfFileNames.append(String(shorter))
+                            }
+                        } catch {
+                            // failed to read directory – bad permissions, perhaps?
+                            print("2- Failed to read File name in Directory: ")
+                            print("Error info: \(error)")
+                        }
+                        print("Array of File names: ", arrayOfFileNames)
+
                         //fix duplicates
                         var i = 1
-                        while self.arr.contains(name) || self.reservedNames.contains(name) {
+                        while arrayOfFileNames.contains(name) {
                             name = userText
-                            name += " ("
+                            name += "("
                             name += String(i)
                             name += ")"
                             i += 1
                         }
+                        print("Unique Name: ", name)
                         //name is now unique
-                        print("Fixed Name: ", name)
                         
-                        
-                        self.arr.append(name)
-                        self.defaults.set(self.arr, forKey: "savedNames")
-                        self.defaults.set(self.currentDesign, forKey: name)
+                        //STORE currentDesign to file
+                        let filename = FileManager.documentDirectoryURL.appendingPathComponent(name + ".txt")
+                        //attempt to make and write to file
+                        do {
+                            try self.currentDesign.write(to: filename, atomically: true, encoding: String.Encoding.utf8)
+                        } catch {
+                            // failed to write file – bad permissions, bad filename, missing permissions, or more likely it can't be converted to the encoding
+                            print("Failed to write to file")
+                            //show user the failure
+                            let alert = UIAlertController(title: "Save Failed", message: "Try again with a different name", preferredStyle: .alert)
+                            let OK = UIAlertAction(title: "OK", style: .default) { (action:UIAlertAction!) in
+                                print("Pressed OK")
+                                
+                            }
+                            alert.addAction(OK)
+                            self.present(alert, animated: true, completion: nil)
+                        }
+                        print("Done?")
                     }
                 }))
 
@@ -243,11 +280,6 @@ class ViewController: UIViewController, ARSCNViewDelegate {
                 if(storeStr != "ERROR: OUT OF RANGE" && !containsInFrame(design: currentDesign, subStr: checkerString2)){
                     currentDesign += storeStr
                 } else {
-//                    if(currentDesign.contains(storeStr)){
-//                        print("In a block: " + storeStr)
-//                    } else {
-//                        print("Error: OUT OF RANGE")
-//                    }
                     return
                 }
             } else {
@@ -275,28 +307,21 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         //ADDS CUBE ADJACENT TO FACE OF PRESSED BLOCK
         
-//      get description of which box face based off of faceIndex's of a cube
+        //get description of which box face based off of faceIndex's of a cube
         enum BoxFace: Int{
         case Front = 0, Right = 2, Back = 4, Left = 6, Top = 8, Bottom = 10
         }
         
         if let faceIndex = BoxFace(rawValue: hitTestResult.first?.faceIndex ?? -1){
-//            print("Adding to Face: ")
             //faceIndex now equals one of the values of the enum BoxFace above
             var position = hitTestResult.first?.node.position
             switch faceIndex{
                 case .Front: position?.z += edgeLength
-//                print("Front")
                 case .Right: position?.x += edgeLength
-//                print("Right")
                 case .Back: position?.z -= edgeLength
-//                print("Back")
                 case .Left: position?.x -= edgeLength
-//                print("Left")
                 case .Top: position?.y += edgeLength
-//                print("Top")
                 case .Bottom: position?.y -= edgeLength
-//                print("Bottom")
             }
             //if cube is within bounds of area, add to view
             var checkerString: String = getStringOfPosition(position!)
@@ -306,7 +331,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
                     addItemToPosition(position: position!, texture: selectedTexture)
                 }
             } else {
-//                print("In Block (adding on face): " + getStringOfPosition(position!))
+                //Add print statements here for testing purposes
             }
         }
     
@@ -368,11 +393,6 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         intY += 31
         intZ += 31
         if(intX < 0 || intX > 63 || intY < 0 || intY > 63 || intZ < 0 || intZ > 63){
-            //don't make cube if it is outside of of the build space
-//            print("Cube out of range: (x/y/z)")
-//            print(intX)
-//            print(intY)
-//            print(intZ)
             return "ERROR: OUT OF RANGE"
         }
         //convert to String with base64 string characters
@@ -475,27 +495,21 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
     //build creations from String
     func loadCreationFromString(design: String, rPos: SCNVector3){
-//        print("Loading")
         var four: [Int] = [ 0, 0, 0, 0]
         var cntr: Int = 0
         for char in design {
             for i in 0..<chars64.count {
                 if(char == chars64[i]){
                     four[cntr] = i
-//                    print("Mod: ", cntr, ", " , i)
                     break
                 }
             }
             if(cntr == 3){
-//                print("Placing at: ")
-//                print(rPos.x, " ", rPos.y, " ", rPos.z)
                 //str hold the 4 char string. Convert to position
                 let posX: Float = rPos.x + Float(four[0]-31)*edgeLength
                 let posY: Float = rPos.y + Float(four[1]-31)*edgeLength
                 let posZ: Float = rPos.z + Float(four[2]-31)*edgeLength
-//                print("x/y/z: ", String(posX), ", ", String(posY), ", ", String(posZ))
                 let material = four[3]
-//                print("material", material)
                 let vexy: SCNVector3 = SCNVector3(CGFloat(posX), CGFloat(posY), CGFloat(posZ))
                 //Try to add item to space
                 addItemToPosition(position: vexy, texture: material)
@@ -516,7 +530,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         configuration.planeDetection = .horizontal
         
         //Show feature points - CAN TURN ON FOR TESTING
-//        sceneView.debugOptions = [ARSCNDebugOptions.showFeaturePoints]
+        //sceneView.debugOptions = [ARSCNDebugOptions.showFeaturePoints]
 
         // Run the view's session
         sceneView.session.run(configuration)

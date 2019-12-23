@@ -17,7 +17,7 @@ class MenuViewController: UIViewController {
     
     @IBOutlet weak var designsTable: UITableView!
     
-    let defaults = UserDefaults.standard
+    let fm = FileManager.default
     
     var theItems: [String : [String]] = [
         "My Designs" : []
@@ -31,11 +31,25 @@ class MenuViewController: UIViewController {
         
         
         //get names of all designs
-        let arrTemp = defaults.stringArray(forKey: "savedNames")
-        if arrTemp != nil {
-            theItems["My Designs"] = arrTemp!
+        var arrayOfFileNames: [String] = []
+        do {
+            let items = try FileManager.default.contentsOfDirectory(at: FileManager.documentDirectoryURL, includingPropertiesForKeys: nil)
+            print("Listing Files: ")
+            for item in items {
+                print("Found: ", item)
+                let shorterArr = item.path.split(separator: "/")
+                var shorter = shorterArr.last!
+                print("Shorter: ", shorter)
+                shorter.removeLast(4)
+                arrayOfFileNames.append(String(shorter))
+            }
+        } catch {
+            // failed to read directory – bad permissions, perhaps?
+            print("2- Failed to read File name in Directory: ")
+            print("Error info: \(error)")
         }
         
+        theItems["My Designs"] = arrayOfFileNames
         
         //set up table with data
         self.designsTable.allowsSelection = true
@@ -43,8 +57,44 @@ class MenuViewController: UIViewController {
         self.designsTable.dataSource = self
         self.designsTable.delegate = self
         
+        //set up long press listener (for sharing)
+        let longPress = UILongPressGestureRecognizer(target: self, action: #selector(longPress(_:)))
+        self.designsTable.addGestureRecognizer(longPress)
+        
+        //Add Header with Information
+        let header = UITableViewCell()
+        header.textLabel?.font = UIFont(name:"HelveticaNeue-Bold", size: 20.0)
+        header.textLabel?.text = "Creations: Tap, Swipe, or Hold"
+        //      setting height of header
+        let height: CGFloat = 70.0
+        var headerFrame = header.frame
+        if height != headerFrame.size.height {
+            headerFrame.size.height = height
+            header.frame = headerFrame
+        }
+        self.designsTable.tableHeaderView = header
+        
     }
-    
+    //share file on long press
+    @objc
+    func longPress(_ gesture: UILongPressGestureRecognizer) {
+        //detect press here - Only care about beginning
+        if(gesture.state == UIGestureRecognizer.State.began){
+            //get row selected
+            let location = gesture.location(in: self.designsTable)
+            guard let indexPath = self.designsTable.indexPathForRow(at: location) else { return }
+            //get name of item pressed
+            let item = self.item(at: indexPath)
+            //Get file you want to share
+            var filesToShare = [Any]()
+            let file = FileManager.documentDirectoryURL.appendingPathComponent(item + ".txt")
+            filesToShare.append(file)
+            //set up share sheet controller
+            let activityViewController = UIActivityViewController(activityItems: filesToShare, applicationActivities: nil)
+            //Finally, show the view
+            self.present(activityViewController, animated: true, completion: nil)
+        }
+    }
     
     //helper functions
     func key(for section: Int) -> String {
@@ -72,14 +122,24 @@ class MenuViewController: UIViewController {
         var arr = theItems[theKey]
         let a = arr?.remove(at: indexPath.row)
         theItems[theKey] = arr
-        //remove from userDefaults
-        defaults.removeObject(forKey: a!)
-        //remove from savedNames list
-        var arry = defaults.stringArray(forKey: "savedNames")
-        arry?.removeAll(where: { $0 == a! } )
-        defaults.set(arry!, forKey: "savedNames")
+        //Deleting file here
+        do {
+            try fm.removeItem(at: FileManager.documentDirectoryURL.appendingPathComponent(a! + ".txt"))
+            print("Removed File")
+        } catch {
+            print("Could not Remove File")
+        }
     }
 
+}
+//for reading files
+extension FileManager {
+    
+    static var documentDirectoryURL: URL {
+        let documentDirectoryURL = (try! FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first)!
+        return documentDirectoryURL
+    }
+    
 }
 
 extension MenuViewController: UITableViewDataSource {
@@ -122,6 +182,7 @@ extension MenuViewController: UITableViewDelegate {
         theDelegate?.designSelected(design: item)
         self.dismiss(animated: true, completion: nil)
     }
+    
     
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         if editingStyle == .delete {
