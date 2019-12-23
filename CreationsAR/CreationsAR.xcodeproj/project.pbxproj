@@ -107,8 +107,8 @@
 				1454D96F23959D45007A253D /* Main.storyboard */,
 				1454D97223959D4C007A253D /* Assets.xcassets */,
 				1454D97423959D4C007A253D /* LaunchScreen.storyboard */,
-				1454D97723959D4C007A253D /* Info.plist */,
 				1454D99923A1AB2A007A253D /* MenuViewController.swift */,
+				1454D97723959D4C007A253D /* Info.plist */,
 			);
 			path = CreationsAR;
 			sourceTree = "<group>";

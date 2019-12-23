@@ -14,6 +14,14 @@ class ViewController: UIViewController, ARSCNViewDelegate {
 
     @IBOutlet var sceneView: ARSCNView!
     
+    let defaults = UserDefaults.standard
+    var arr: [String] = []
+    var reservedNames: [String] = ["savedNames"]
+    
+    @IBOutlet weak var loadModel: UIImageView!
+    @IBOutlet weak var saveModel: UIImageView!
+    
+    
     var time = 0.0
     let edgeLength: Float = 0.04
     var rootPosition: SCNVector3? = nil
@@ -25,12 +33,26 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     //array of all available textures
     let textures: [String] = ["art.scnassets/brick.png", "art.scnassets/RedPaint.png", "art.scnassets/GreenPaint.png", "art.scnassets/BluePaint.png"]
     var selectedTexture: Int = 0
+    var designToPlace = ""
     
     @IBOutlet weak var currentBlock: UIImageView!
     
     
     override func viewDidLoad() {
+        
+        //MARK: SWITCH TO FILES from USER DEFAULTS
+        
         super.viewDidLoad()
+        
+        print("++++++++++View Did Load++++++++++")
+        
+        let tArr: [String]? = defaults.stringArray(forKey: "savedNames")
+        if tArr == nil {
+            arr = []
+        } else {
+            arr = tArr!
+        }
+        
         
         // Set the view's delegate
         sceneView.delegate = self
@@ -59,10 +81,95 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         //Current Block Desplay
         currentBlock.image = UIImage(named: textures[selectedTexture])
         
+        
+        //set up buttons
+        let loadNModelRecognizer = UITapGestureRecognizer(target: self, action: #selector(loadNewModel(_:)))
+        loadModel.isUserInteractionEnabled = true
+        loadModel.addGestureRecognizer(loadNModelRecognizer)
+        let saveThisCreationRecognizer = UITapGestureRecognizer(target: self, action: #selector(saveThatModel(_:)))
+        saveModel.isUserInteractionEnabled = true
+        saveModel.addGestureRecognizer(saveThisCreationRecognizer)
+        
     }
+    //button configuration
+    @objc
+    func loadNewModel(_ gesture: UITapGestureRecognizer) {
+        //open table view here
+        let table = self.storyboard!.instantiateViewController(withIdentifier: "MenuViewController") as? MenuViewController
+        //prepare
+        table?.theDelegate = self
+        
+        //transition
+        self.present(table!, animated: true, completion: nil)
+    }
+    //model returned
+    func innerDesignSelected(design: String) {
+        //design is now the String for the returned design
+        print("Design Received: " + design)
+        //get from userDefaults
+        designToPlace = defaults.string(forKey: design) ?? ""
+        currentBlock.image = UIImage(named: "art.scnassets/plus.png")
+        //clear previous designs
+        for childNode in sceneView.scene.rootNode.childNodes {
+            if ((childNode.geometry?.description.contains("SCNBox")) ?? false) {
+                childNode.removeFromParentNode()
+            }
+        }
+        //delete root to be reset at placing
+        rootPosition = nil
+    }
+    @objc
+    func saveThatModel(_ gesture: UITapGestureRecognizer) {
+        //ask for name to save under
+        if(currentDesign != ""){
+            let alert = UIAlertController(title: "Saving", message: "Enter Design Name", preferredStyle: .alert)
+                alert.addTextField { (textField) in
+                    textField.placeholder = "Type here"
+                }
+
+                alert.addAction(UIAlertAction(title: "Save", style: .default, handler: { [weak alert] (_) in
+                    guard let textField = alert?.textFields?[0], let userText = textField.text else { return }
+                    //here there is user inputted text
+                    print("Inputted Name: ", userText)
+                    if(userText != ""){
+                        var name = userText
+                        
+                        //update arr with current names list
+                        let tempArr = self.defaults.stringArray(forKey: "savedNames")
+                        if tempArr != nil {
+                            self.arr = tempArr!
+                        } else {
+                            self.arr = []
+                        }
+                        
+                        //fix duplicates
+                        var i = 1
+                        while self.arr.contains(name) || self.reservedNames.contains(name) {
+                            name = userText
+                            name += " ("
+                            name += String(i)
+                            name += ")"
+                            i += 1
+                        }
+                        //name is now unique
+                        print("Fixed Name: ", name)
+                        
+                        
+                        self.arr.append(name)
+                        self.defaults.set(self.arr, forKey: "savedNames")
+                        self.defaults.set(self.currentDesign, forKey: name)
+                    }
+                }))
+
+            self.present(alert, animated: true, completion: nil)
+        }
+        
+    }
+    
     //didTap function for when gestures are regonized byU ITapGestureRecognizer above
     @objc
     func didTap(_ gesture: UITapGestureRecognizer) {
+        
         
         let sceneViewTappedOn = gesture.view as! ARSCNView
         let touchCoordinates = gesture.location(in: sceneViewTappedOn)
@@ -144,9 +251,21 @@ class ViewController: UIViewController, ARSCNViewDelegate {
                     return
                 }
             } else {
+                //set root
                 rootPosition = position
-                
-                currentDesign += "YYY0"
+                if(designToPlace != ""){
+                    //build loaded object in area
+                    loadCreationFromString(design: designToPlace, rPos: rootPosition!)
+                    //Go back to normal blocks
+                    currentBlock.image = UIImage(named: textures[selectedTexture])
+                    //prepare for ordinary actions
+                    currentDesign = designToPlace
+                    designToPlace = ""
+                    return
+                } else {
+                    currentDesign += "YYY"
+                    currentDesign += String(chars64[selectedTexture])
+                }
             }
                 
             //call method to add item
@@ -204,7 +323,6 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         let node = SCNNode(geometry: box)
         node.position = position
         self.sceneView.scene.rootNode.addChildNode(node)
-            
     }
     //find integer latice position of the new cube
     func storeNewCubePosition(_ position: SCNVector3) -> Bool {
@@ -262,7 +380,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         str += String(chars64[intX])
         str += String(chars64[intY])
         str += String(chars64[intZ])
-        str += String(selectedTexture)
+        str += String(chars64[selectedTexture])
         return str
     }
     //finds if the design string contains the subStr in a 4 character frame
@@ -341,8 +459,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
     @objc
     func didSwipeRight(_ gesture: UISwipeGestureRecognizer) {
-//        print("Swiped Left")
-        if(selectedTexture != textures.count - 1){
+        if(selectedTexture != textures.count - 1 && designToPlace == ""){
             selectedTexture += 1;
             //update image
             currentBlock.image = UIImage(named: textures[selectedTexture])
@@ -350,8 +467,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
     @objc
     func didSwipeLeft(_ gesture: UISwipeGestureRecognizer) {
-//        print("Swiped Right")
-        if(selectedTexture != 0){
+        if(selectedTexture != 0 && designToPlace == ""){
             selectedTexture -= 1;
             //update image
             currentBlock.image = UIImage(named: textures[selectedTexture])
@@ -418,16 +534,17 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     //show horizontal planes found
     func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
         
-        if let planeAnchor = anchor as? ARPlaneAnchor {
-            let plane = SCNPlane(width: CGFloat(planeAnchor.extent.x), height: CGFloat(planeAnchor.extent.z))
-            plane.firstMaterial?.diffuse.contents = UIColor(white: 1, alpha: 0.75)
-
-            let planeNode = SCNNode(geometry: plane)
-            planeNode.position = SCNVector3Make(planeAnchor.center.x, planeAnchor.center.x, planeAnchor.center.z)
-            planeNode.eulerAngles.x = -.pi / 2
-            
-            node.addChildNode(planeNode)
-        }
+        //FOR TESTING: SHOWS DETECTED PLANES IN WORLD
+//        if let planeAnchor = anchor as? ARPlaneAnchor {
+//            let plane = SCNPlane(width: CGFloat(planeAnchor.extent.x), height: CGFloat(planeAnchor.extent.z))
+//            plane.firstMaterial?.diffuse.contents = UIColor(white: 1, alpha: 0.5)
+//
+//            let planeNode = SCNNode(geometry: plane)
+//            planeNode.position = SCNVector3Make(planeAnchor.center.x, planeAnchor.center.x, planeAnchor.center.z)
+//            planeNode.eulerAngles.x = -.pi / 2
+//
+//            node.addChildNode(planeNode)
+//        }
     }
     
     func session(_ session: ARSession, didFailWithError error: Error) {
@@ -443,5 +560,13 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     func sessionInterruptionEnded(_ session: ARSession) {
         // Reset tracking and/or remove existing anchors if consistent tracking is required
         
+    }
+}
+
+//receive information back from the tableView view controller
+extension ViewController: LoadDesignDelegate {
+    //call function within to work with information
+    func designSelected(design: String) {
+        innerDesignSelected(design: design)
     }
 }
