@@ -27,7 +27,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     let chars64: [Character] = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "a", "s", "d", "f", "g", "h", "j", "k", "l", "z", "x", "c", "v", "b", "n", "m", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", "Z", "X", "C", "V", "B", "N", "M", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "+", "/"]
     
     //array of all available textures
-    let textures: [String] = ["art.scnassets/brick.png", "art.scnassets/RedPaint.png", "art.scnassets/GreenPaint.png", "art.scnassets/BluePaint.png"]
+    let textures: [String] = [ "art.scnassets/RedPaint.png", "art.scnassets/OrangePaint.png", "art.scnassets/YellowPaint.png", "art.scnassets/GreenPaint.png", "art.scnassets/BluePaint.png", "art.scnassets/PurplePaint.png", "art.scnassets/brick.png", "art.scnassets/stone.png", "art.scnassets/SmoothStone.png", "art.scnassets/wood.png", "art.scnassets/DarkWood.png", "art.scnassets/WoodBoards.png"]
     var selectedTexture: Int = 0
     var designToPlace = ""
     
@@ -35,8 +35,6 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     
     
     override func viewDidLoad() {
-        
-        //MARK: SWITCH TO FILES from USER DEFAULTS
         
         super.viewDidLoad()
         
@@ -46,6 +44,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         // Show statistics such as fps and timing information
         sceneView.showsStatistics = true
         
+    //Tap Gestures:
         //start recognizing tap gestures
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(didTap(_:)))
         sceneView.addGestureRecognizer(tapGesture)
@@ -55,6 +54,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         longTapGesture.allowableMovement = 5
         sceneView.addGestureRecognizer(longTapGesture)
         
+    //Swiping to change textures:
         //add right swipe detection for changing block material to the right
         let swipeGestureRight = UISwipeGestureRecognizer(target: self, action: #selector(didSwipeRight(_:)))
         sceneView.addGestureRecognizer(swipeGestureRight)
@@ -64,7 +64,17 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         swipeGestureLeft.direction = UISwipeGestureRecognizer.Direction.left
         sceneView.addGestureRecognizer(swipeGestureLeft)
         
-        //Current Block Desplay
+        //add up swipe detection for changing block material set up
+        let swipeGestureUp = UISwipeGestureRecognizer(target: self, action: #selector(didSwipeUp(_:)))
+        swipeGestureUp.direction = UISwipeGestureRecognizer.Direction.up
+        sceneView.addGestureRecognizer(swipeGestureUp)
+        
+        //add down swipe detection for changing block material set down
+        let swipeGestureDown = UISwipeGestureRecognizer(target: self, action: #selector(didSwipeDown(_:)))
+        swipeGestureDown.direction = UISwipeGestureRecognizer.Direction.down
+        sceneView.addGestureRecognizer(swipeGestureDown)
+        
+    //Current Block Desplay
         currentBlock.image = UIImage(named: textures[selectedTexture])
         
         
@@ -89,19 +99,19 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         self.present(table!, animated: true, completion: nil)
     }
     //model returned
-    func innerDesignSelected(design: String) {
+    func innerDesignSelected(design: String, folder: String) {
         //design is now the String for the returned design
-        print("Design Received: " + design)
-        //get from userDefaults
-        //MARK: CHANGE TO READING THE FILE OF NAME 'design'
+//        print("Design Received: " + design)
+//        print("At Folder: \(folder)")
+        //reading the file of name 'design' in 'folder'
         do {
-            let contents = try String(contentsOfFile: FileManager.documentDirectoryURL.appendingPathComponent(design + ".txt").path)
-            print("Contents of File: " + contents)
+            let contents = try String(contentsOfFile: FileManager.documentDirectoryURL.appendingPathComponent(folder).appendingPathComponent(design + ".txt").path)
+//            print("Contents of File: " + contents)
             designToPlace = contents
             } catch {
                 //failed to read from file
-                print("Failed to read from file:")
-                print("ERROR: \(error)")
+//                print("Failed to read from file:")
+//                print("ERROR: \(error)")
             }
         currentBlock.image = UIImage(named: "art.scnassets/plus.png")
         //clear previous designs
@@ -125,19 +135,19 @@ class ViewController: UIViewController, ARSCNViewDelegate {
                 alert.addAction(UIAlertAction(title: "Save", style: .default, handler: { [weak alert] (_) in
                     guard let textField = alert?.textFields?[0], let userText = textField.text else { return }
                     //here there is user inputted text
-                    print("Inputted Name: ", userText)
+//                    print("Inputted Name: ", userText)
                     if(userText != ""){
                         var name = userText
                         //remove all unsafe url characters
                         let unsafeURLCharacters = ["/", ":", ";", "|"]
                         //Safeing url
                         name.removeAll(where: { unsafeURLCharacters.contains(String($0)) })
-                        print("Safe Name: ", name)
+//                        print("Safe Name: ", name)
                         if(name == ""){
                             //alert if removing safe characters brought name to an empty string
                             let alert2 = UIAlertController(title: "Unsafe Name", message: "Try using more standard characters in name", preferredStyle: .alert)
                             let OK2 = UIAlertAction(title: "OK", style: .default) { (action:UIAlertAction!) in
-                                print("Pressed OK 2")
+//                                print("Pressed OK 2")
                             }
                             alert2.addAction(OK2)
                             self.present(alert2, animated: true, completion: nil)
@@ -148,57 +158,152 @@ class ViewController: UIViewController, ARSCNViewDelegate {
                         //get all filenames already taken
                         var arrayOfFileNames: [String] = []
                         do {
-                            let items = try FileManager.default.contentsOfDirectory(at: FileManager.documentDirectoryURL, includingPropertiesForKeys: nil)
-                            print("Listing Files: ")
+                            let items = try FileManager.default.contentsOfDirectory(at: FileManager.documentDirectoryURL.appendingPathComponent("My Designs"), includingPropertiesForKeys: nil)
+//                            print("Listing Files: ")
                             for item in items {
-                                print("Found: ", item)
+//                                print("Found: ", item)
                                 let shorterArr = item.path.split(separator: "/")
                                 var shorter = shorterArr.last!
-                                print("Shorter: ", shorter)
+//                                print("Shorter: ", shorter)
                                 shorter.removeLast(4)
                                 arrayOfFileNames.append(String(shorter))
                             }
                         } catch {
                             // failed to read directory – bad permissions, perhaps?
-                            print("2- Failed to read File name in Directory: ")
-                            print("Error info: \(error)")
+//                            print("2- Failed to read File name in Directory: ")
+//                            print("Error info: \(error)")
                         }
-                        print("Array of File names: ", arrayOfFileNames)
+//                        print("Array of File names: ", arrayOfFileNames)
 
                         //fix duplicates
+                        let holder = name
                         var i = 1
                         while arrayOfFileNames.contains(name) {
-                            name = userText
+                            name = holder
                             name += "("
                             name += String(i)
                             name += ")"
                             i += 1
                         }
-                        print("Unique Name: ", name)
+//                        print("Unique Name: ", name)
                         //name is now unique
                         
-                        //STORE currentDesign to file
-                        let filename = FileManager.documentDirectoryURL.appendingPathComponent(name + ".txt")
+                        //check if local folder has been created, if not create it
+                        let folderPath = FileManager.documentDirectoryURL.appendingPathComponent("My Designs")
+                        let folderExists = (try? folderPath.checkResourceIsReachable()) ?? false
+                        if !folderExists {
+                            do {
+                                try FileManager.default.createDirectory(at: folderPath, withIntermediateDirectories: false)
+//                                print("Created My Designs Directory")
+                            } catch {
+                                //failed to create Directory
+//                                print("Failed to create My Designs directory")
+                                //abort
+                                return
+                            }
+                        }
+                        
+                        //STORE currentDesign to file in My Designs
+                        let filename = FileManager.documentDirectoryURL.appendingPathComponent("My Designs").appendingPathComponent(name + ".txt")
                         //attempt to make and write to file
                         do {
                             try self.currentDesign.write(to: filename, atomically: true, encoding: String.Encoding.utf8)
                         } catch {
                             // failed to write file – bad permissions, bad filename, missing permissions, or more likely it can't be converted to the encoding
-                            print("Failed to write to file")
+//                            print("Failed to write to file")
                             //show user the failure
                             let alert = UIAlertController(title: "Save Failed", message: "Try again with a different name", preferredStyle: .alert)
                             let OK = UIAlertAction(title: "OK", style: .default) { (action:UIAlertAction!) in
-                                print("Pressed OK")
-                                
+//                                print("Pressed OK")
                             }
                             alert.addAction(OK)
                             self.present(alert, animated: true, completion: nil)
                         }
-                        print("Done?")
                     }
                 }))
 
             self.present(alert, animated: true, completion: nil)
+        }
+        
+    }
+    //receive file of model from another app
+    func incomingDesignURL(url: URL){
+        //File path is here: (e.g. file:///private/var/mobile/Containers/Data/Application/340448CA-7E9F-4B19-92DE-7F99EF11DAA8/Documents/Inbox/stairs-7.txt)
+        do {
+//            print("PATH: \(url.path)")
+            let theDesign = try String(contentsOfFile: url.path)
+//            print("Contents of File: \(theDesign)")
+            
+            //Check for Shared Designs folder, or create it
+            let folderPath = FileManager.documentDirectoryURL.appendingPathComponent("Shared Designs")
+            let folderExists = (try? folderPath.checkResourceIsReachable()) ?? false
+            if !folderExists {
+                do {
+                    try FileManager.default.createDirectory(at: folderPath, withIntermediateDirectories: false)
+//                    print("Created Shared Designs Directory")
+                } catch {
+                    //failed to create Directory
+//                    print("Failed to create Shared Designs directory")
+                    //abort
+                    return
+                }
+            }
+            //check for available name for file (so nothing is overwriten)
+            //  get all filenames already taken
+            var arrayOfFileNames: [String] = []
+            do {
+                let items = try FileManager.default.contentsOfDirectory(at: FileManager.documentDirectoryURL.appendingPathComponent("Shared Designs"), includingPropertiesForKeys: nil)
+//                print("Listing Files: ")
+                for item in items {
+//                    print("Found: ", item)
+                    let shorterArr = item.path.split(separator: "/")
+                    var shorter = shorterArr.last!
+//                    print("Shorter: ", shorter)
+                    shorter.removeLast(4)
+                    arrayOfFileNames.append(String(shorter))
+                }
+            } catch {
+                // failed to read directory – bad permissions, perhaps?
+//                print("2- Failed to read File name in Directory: ")
+//                print("Error info: \(error)")
+            }
+            //fix file name so it is unique
+            let fileNameArr = url.path.split(separator: "/")
+            let startingName = fileNameArr.last!
+            var name = String(startingName)
+            name.removeLast(4)
+            //  remove unsafe characters from name
+            let unsafeURLCharacters = ["/", ":", ";", "|"]
+            //      safeing url
+            name.removeAll(where: { unsafeURLCharacters.contains(String($0)) })
+            if name == "" {
+                name = "shared design"
+            }
+            //  make name unique
+            let holder = name
+            var i = 1
+            while arrayOfFileNames.contains(name) {
+                name = holder
+                name += "("
+                name += String(i)
+                name += ")"
+                i += 1
+            }
+//            print("Unique Name: ", name)
+            
+            //Save the file to Shared Designs Folder
+            let filename = FileManager.documentDirectoryURL.appendingPathComponent("Shared Designs").appendingPathComponent(name + ".txt")
+            do {
+                try theDesign.write(to: filename, atomically: true, encoding: String.Encoding.utf8)
+                //make call to allow design to be placed
+                innerDesignSelected(design: name, folder: "Shared Designs")
+            } catch {
+                // failed to write file – bad permissions, bad filename, missing permissions, or more likely it can't be converted to the encoding
+//                print("Failed to write to file")
+            }
+            
+        } catch {
+//            print("Error reading File: \(error)")
         }
         
     }
@@ -493,6 +598,22 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             currentBlock.image = UIImage(named: textures[selectedTexture])
         }
     }
+    @objc
+    func didSwipeUp(_ gesture: UISwipeGestureRecognizer) {
+        if(selectedTexture + 6 < textures.count && designToPlace == ""){
+            selectedTexture += 6;
+            //update image
+            currentBlock.image = UIImage(named: textures[selectedTexture])
+        }
+    }
+    @objc
+    func didSwipeDown(_ gesture: UISwipeGestureRecognizer) {
+        if(selectedTexture - 6 >= 0 && designToPlace == ""){
+            selectedTexture -= 6;
+            //update image
+            currentBlock.image = UIImage(named: textures[selectedTexture])
+        }
+    }
     //build creations from String
     func loadCreationFromString(design: String, rPos: SCNVector3){
         var four: [Int] = [ 0, 0, 0, 0]
@@ -580,7 +701,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
 //receive information back from the tableView view controller
 extension ViewController: LoadDesignDelegate {
     //call function within to work with information
-    func designSelected(design: String) {
-        innerDesignSelected(design: design)
+    func designSelected(design: String, folder: String) {
+        innerDesignSelected(design: design, folder: folder)
     }
 }

@@ -12,6 +12,21 @@ import UIKit
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
+    
+    //Added by me: Gets files shared to app from a share sheet
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+        
+//        print("The received URL: \(url)")
+        
+//        let vc = ViewController()
+//        vc.incomingDesignURL(url: url)
+        guard let vc = window?.rootViewController as? ViewController else {
+            fatalError("The root view is not a document browser!")
+        }
+        vc.incomingDesignURL(url: url)
+        
+        return true
+    }
 
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {

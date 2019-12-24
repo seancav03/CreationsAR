@@ -10,7 +10,7 @@ import UIKit
 
 //how this tableView view controller passes information back to the main
 protocol LoadDesignDelegate: AnyObject {
-    func designSelected(design: String)
+    func designSelected(design: String, folder: String)
 }
 
 class MenuViewController: UIViewController {
@@ -20,7 +20,8 @@ class MenuViewController: UIViewController {
     let fm = FileManager.default
     
     var theItems: [String : [String]] = [
-        "My Designs" : []
+        "My Designs" : [],
+        "Shared Designs" : []
     ]
     
     //for passing back design
@@ -30,26 +31,45 @@ class MenuViewController: UIViewController {
         super.viewDidLoad()
         
         
-        //get names of all designs
+        //get names of all designs in 'My Designs' folder
         var arrayOfFileNames: [String] = []
         do {
-            let items = try FileManager.default.contentsOfDirectory(at: FileManager.documentDirectoryURL, includingPropertiesForKeys: nil)
-            print("Listing Files: ")
+            let items = try FileManager.default.contentsOfDirectory(at: FileManager.documentDirectoryURL.appendingPathComponent("My Designs"), includingPropertiesForKeys: nil)
+//            print("Listing Files: ")
             for item in items {
-                print("Found: ", item)
+//                print("Found: ", item)
                 let shorterArr = item.path.split(separator: "/")
                 var shorter = shorterArr.last!
-                print("Shorter: ", shorter)
+//                print("Shorter: ", shorter)
                 shorter.removeLast(4)
                 arrayOfFileNames.append(String(shorter))
             }
         } catch {
             // failed to read directory – bad permissions, perhaps?
-            print("2- Failed to read File name in Directory: ")
-            print("Error info: \(error)")
+//            print("2- Failed to read File name in Directory: ")
+//            print("Error info: \(error)")
         }
-        
         theItems["My Designs"] = arrayOfFileNames
+        
+        //get names of all designs in 'Shared Designs'
+        var arrayOfFileNames2: [String] = []
+        do {
+            let items = try FileManager.default.contentsOfDirectory(at: FileManager.documentDirectoryURL.appendingPathComponent("Shared Designs"), includingPropertiesForKeys: nil)
+//            print("Listing Files: ")
+            for item in items {
+//                print("Found: ", item)
+                let shorterArr = item.path.split(separator: "/")
+                var shorter = shorterArr.last!
+//                print("Shorter: ", shorter)
+                shorter.removeLast(4)
+                arrayOfFileNames2.append(String(shorter))
+            }
+        } catch {
+            // failed to read directory – bad permissions, perhaps?
+//            print("2- Failed to read File name in Directory: ")
+//            print("Error info: \(error)")
+        }
+        theItems["Shared Designs"] = arrayOfFileNames2
         
         //set up table with data
         self.designsTable.allowsSelection = true
@@ -87,7 +107,7 @@ class MenuViewController: UIViewController {
             let item = self.item(at: indexPath)
             //Get file you want to share
             var filesToShare = [Any]()
-            let file = FileManager.documentDirectoryURL.appendingPathComponent(item + ".txt")
+            let file = FileManager.documentDirectoryURL.appendingPathComponent(key(for: indexPath.section)).appendingPathComponent(item + ".txt")
             filesToShare.append(file)
             //set up share sheet controller
             let activityViewController = UIActivityViewController(activityItems: filesToShare, applicationActivities: nil)
@@ -124,10 +144,10 @@ class MenuViewController: UIViewController {
         theItems[theKey] = arr
         //Deleting file here
         do {
-            try fm.removeItem(at: FileManager.documentDirectoryURL.appendingPathComponent(a! + ".txt"))
-            print("Removed File")
+            try fm.removeItem(at: FileManager.documentDirectoryURL.appendingPathComponent(key(for: indexPath.section)).appendingPathComponent(a! + ".txt"))
+//            print("Removed File")
         } catch {
-            print("Could not Remove File")
+//            print("Could not Remove File")
         }
     }
 
@@ -177,9 +197,10 @@ extension MenuViewController: UITableViewDelegate {
 
         let item = self.item(at: indexPath)
         //ITEM IS THE SELCTED THING!!!
-        print("Item: ", item)
-        //return
-        theDelegate?.designSelected(design: item)
+//        print("Item: ", item)
+        //return item and folder of design selected
+        let folder = key(for: indexPath.section)
+        theDelegate?.designSelected(design: item, folder: folder)
         self.dismiss(animated: true, completion: nil)
     }
     
