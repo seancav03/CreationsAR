@@ -16,22 +16,31 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     
     @IBOutlet weak var loadModel: UIImageView!
     @IBOutlet weak var saveModel: UIImageView!
+    @IBOutlet weak var clearSpace: UIImageView!
+    
+    //for presenting view to select saved designs (and removing that view)
+    var table: MenuViewController?
     
     
     var time = 0.0
     let edgeLength: Float = 0.04
     var rootPosition: SCNVector3? = nil
+    let texturesPerCategory = 8
     
     var currentDesign: String = ""
     
     let chars64: [Character] = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "a", "s", "d", "f", "g", "h", "j", "k", "l", "z", "x", "c", "v", "b", "n", "m", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", "Z", "X", "C", "V", "B", "N", "M", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "+", "/"]
     
     //array of all available textures
-    let textures: [String] = [ "art.scnassets/RedPaint.png", "art.scnassets/OrangePaint.png", "art.scnassets/YellowPaint.png", "art.scnassets/GreenPaint.png", "art.scnassets/BluePaint.png", "art.scnassets/PurplePaint.png", "art.scnassets/brick.png", "art.scnassets/stone.png", "art.scnassets/SmoothStone.png", "art.scnassets/wood.png", "art.scnassets/DarkWood.png", "art.scnassets/WoodBoards.png"]
+    let textures: [String] = [ "art.scnassets/RedPaint.png", "art.scnassets/OrangePaint.png", "art.scnassets/YellowPaint.png", "art.scnassets/GreenPaint.png", "art.scnassets/BluePaint.png", "art.scnassets/PurplePaint.png", "art.scnassets/WhitePaint.png", "art.scnassets/BlackPaint.png", "art.scnassets/brick.png", "art.scnassets/WhiteBrick.png", "art.scnassets/Concrete.png", "art.scnassets/stone.png", "art.scnassets/mosaicStone.png", "art.scnassets/SmoothStone.png", "art.scnassets/Gravel.png", "art.scnassets/Sand.png", "art.scnassets/NiceWood.png", "art.scnassets/WoodBoards.png", "art.scnassets/BarnWood.png", "art.scnassets/WeatheredWood.png", "art.scnassets/DarkWood.png", "art.scnassets/GreyWood.png", "art.scnassets/wood.png", "art.scnassets/SmoothWood.png"]
     var selectedTexture: Int = 0
     var designToPlace = ""
     
     @IBOutlet weak var currentBlock: UIImageView!
+    @IBOutlet weak var textureBelow: UIImageView!
+    @IBOutlet weak var textureRight: UIImageView!
+    @IBOutlet weak var textureAbove: UIImageView!
+    @IBOutlet weak var textureLeft: UIImageView!
     
     
     override func viewDidLoad() {
@@ -41,8 +50,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         // Set the view's delegate
         sceneView.delegate = self
         
-        // Show statistics such as fps and timing information
-        sceneView.showsStatistics = true
+        //lighting stuff
+//        sceneView.autoenablesDefaultLighting = false;
         
     //Tap Gestures:
         //start recognizing tap gestures
@@ -74,24 +83,108 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         swipeGestureDown.direction = UISwipeGestureRecognizer.Direction.down
         sceneView.addGestureRecognizer(swipeGestureDown)
         
-    //Current Block Desplay
+    //Texture of Blocks Desplay
+        //current block
         currentBlock.image = UIImage(named: textures[selectedTexture])
+        currentBlock.isUserInteractionEnabled = true
+        //surrounding textures
+        textureBelow.isUserInteractionEnabled = true
+        textureRight.isUserInteractionEnabled = true
+        textureAbove.isUserInteractionEnabled = true
+        textureLeft.isUserInteractionEnabled = true
+        let changeTextureDownRecognizer = UITapGestureRecognizer(target: self, action: #selector(changeTextureDown(_:)))
+        let changeTextureUpRecognizer = UITapGestureRecognizer(target: self, action: #selector(changeTextureUp(_:)))
+        let changeTextureRightRecognizer = UITapGestureRecognizer(target: self, action: #selector(changeTextureRight(_:)))
+        let changeTextureLeftRecognizer = UITapGestureRecognizer(target: self, action: #selector(changeTextureLeft(_:)))
+        textureBelow.addGestureRecognizer(changeTextureDownRecognizer)
+        textureAbove.addGestureRecognizer(changeTextureUpRecognizer)
+        textureRight.addGestureRecognizer(changeTextureRightRecognizer)
+        textureLeft.addGestureRecognizer(changeTextureLeftRecognizer)
+        showTextures()
         
         
-        //set up buttons
+    //set up buttons
         let loadNModelRecognizer = UITapGestureRecognizer(target: self, action: #selector(loadNewModel(_:)))
         loadModel.isUserInteractionEnabled = true
         loadModel.addGestureRecognizer(loadNModelRecognizer)
         let saveThisCreationRecognizer = UITapGestureRecognizer(target: self, action: #selector(saveThatModel(_:)))
         saveModel.isUserInteractionEnabled = true
         saveModel.addGestureRecognizer(saveThisCreationRecognizer)
+        let clearSpaceRecognizer = UITapGestureRecognizer(target: self, action: #selector(clearTheSpace(_:)))
+        clearSpace.isUserInteractionEnabled = true
+        clearSpace.addGestureRecognizer(clearSpaceRecognizer)
         
     }
+    //change texture to texture in category below
+    @objc
+    func changeTextureDown(_ gesture: UITapGestureRecognizer){
+        if(selectedTexture - texturesPerCategory >= 0 && designToPlace == ""){
+            selectedTexture -= texturesPerCategory
+            //adjust images shown
+            showTextures()
+        }
+    }
+    //change texture to texture in category above
+    @objc
+    func changeTextureUp(_ gesture: UITapGestureRecognizer){
+        if(selectedTexture + texturesPerCategory < textures.count && designToPlace == ""){
+            selectedTexture += texturesPerCategory
+            //adjust images shown
+            showTextures()
+        }
+    }
+    //change texture to texture to right
+    @objc
+    func changeTextureRight(_ gesture: UITapGestureRecognizer){
+        if(selectedTexture + 1 < textures.count && designToPlace == ""){
+            selectedTexture += 1
+            //adjust images shown
+            showTextures()
+        }
+    }
+    //change texture to texture to left
+    @objc
+    func changeTextureLeft(_ gesture: UITapGestureRecognizer){
+        if(selectedTexture - 1 >= 0 && designToPlace == ""){
+            selectedTexture -= 1
+            //adjust images shown
+            showTextures()
+        }
+    }
+    //set all block images based on new selected index
+    func showTextures(){
+        currentBlock.image = UIImage(named: textures[selectedTexture])
+        //above
+        if(selectedTexture + texturesPerCategory < textures.count){
+            textureAbove.image = UIImage(named: textures[selectedTexture + texturesPerCategory])
+        } else {
+            textureAbove.image = nil
+        }
+        //below
+        if(selectedTexture - texturesPerCategory >= 0){
+            textureBelow.image = UIImage(named: textures[selectedTexture - texturesPerCategory])
+        } else {
+            textureBelow.image = nil
+        }
+        //right
+        if(selectedTexture + 1 < textures.count){
+            textureRight.image = UIImage(named: textures[selectedTexture + 1])
+        } else {
+            textureRight.image = nil
+        }
+        //left
+        if(selectedTexture - 1 >= 0){
+            textureLeft.image = UIImage(named: textures[selectedTexture - 1])
+        } else {
+            textureLeft.image = nil
+        }
+    }
+    
     //button configuration
     @objc
     func loadNewModel(_ gesture: UITapGestureRecognizer) {
         //open table view here
-        let table = self.storyboard!.instantiateViewController(withIdentifier: "MenuViewController") as? MenuViewController
+        table = self.storyboard!.instantiateViewController(withIdentifier: "MenuViewController") as? MenuViewController
         //prepare
         table?.theDelegate = self
         
@@ -100,6 +193,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
     //model returned
     func innerDesignSelected(design: String, folder: String) {
+        print("The Current Design is empty: ", Bool(design == ""))
         //design is now the String for the returned design
 //        print("Design Received: " + design)
 //        print("At Folder: \(folder)")
@@ -114,6 +208,39 @@ class ViewController: UIViewController, ARSCNViewDelegate {
 //                print("ERROR: \(error)")
             }
         currentBlock.image = UIImage(named: "art.scnassets/plus.png")
+        //Ask to save, then clear the prior design from the workspace
+            //first, dismiss table view so alert asking to save can be displayed
+        table?.dismiss(animated: true, completion: nil)
+        actuallyClearTheSpace()
+    }
+    @objc
+    func clearTheSpace(_ gesture: UITapGestureRecognizer) {
+        //call helper function to clear the workspace
+        actuallyClearTheSpace()
+    }
+    //actually clears the space
+    func actuallyClearTheSpace() {
+        print("cur Des: \(currentDesign)")
+        if currentDesign != "" {
+            //set up Alert to ask user if they want to save the design
+            let askSave = UIAlertController(title: "Save Design?", message: "Press 'Save' to Save. Otherwise, data will be lost", preferredStyle: UIAlertController.Style.alert)
+            askSave.addAction(UIAlertAction(title: "Save", style: .default, handler: { (action: UIAlertAction!) in
+                    //Code here is for if user presses save. Clear after
+                    self.save(clearAfter: true)
+              }))
+            askSave.addAction(UIAlertAction(title: "Don't Save", style: .cancel, handler: { (action: UIAlertAction!) in
+                    //Code here is for if user wants to not save design. Just clear the space
+                    self.clearMyWorkspace()
+              }))
+
+            present(askSave, animated: true, completion: nil)
+        } else {
+            //merely clear the root position. No design placed
+            rootPosition = nil
+        }
+    }
+    //helper function clears workspace
+    func clearMyWorkspace(){
         //clear previous designs
         for childNode in sceneView.scene.rootNode.childNodes {
             if ((childNode.geometry?.description.contains("SCNBox")) ?? false) {
@@ -122,109 +249,118 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
         //delete root to be reset at placing
         rootPosition = nil
+        currentDesign = ""
     }
     @objc
     func saveThatModel(_ gesture: UITapGestureRecognizer) {
+        //call function below to save when button is pressed
+        save(clearAfter: false)
+    }
+    //Save model
+    func save(clearAfter shouldClearWorkspaceAfter: Bool){
         //ask for name to save under
-        if(currentDesign != ""){
-            let alert = UIAlertController(title: "Saving", message: "Enter Design Name", preferredStyle: .alert)
-                alert.addTextField { (textField) in
-                    textField.placeholder = "Type here"
+                if(currentDesign != ""){
+                    let alert = UIAlertController(title: "Saving", message: "Enter Design Name", preferredStyle: .alert)
+                        alert.addTextField { (textField) in
+                            textField.placeholder = "Type here"
+                        }
+
+                        alert.addAction(UIAlertAction(title: "Save", style: .default, handler: { [weak alert] (_) in
+                            guard let textField = alert?.textFields?[0], let userText = textField.text else { return }
+                            //here there is user inputted text
+        //                    print("Inputted Name: ", userText)
+                            if(userText != ""){
+                                var name = userText
+                                //remove all unsafe url characters
+                                let unsafeURLCharacters = ["/", ":", ";", "|"]
+                                //Safeing url
+                                name.removeAll(where: { unsafeURLCharacters.contains(String($0)) })
+        //                        print("Safe Name: ", name)
+                                if(name == ""){
+                                    //alert if removing safe characters brought name to an empty string
+                                    let alert2 = UIAlertController(title: "Unsafe Name", message: "Try using more standard characters in name", preferredStyle: .alert)
+                                    let OK2 = UIAlertAction(title: "OK", style: .default) { (action:UIAlertAction!) in
+        //                                print("Pressed OK 2")
+                                    }
+                                    alert2.addAction(OK2)
+                                    self.present(alert2, animated: true, completion: nil)
+                                    //abort saving
+                                    return
+                                }
+                                
+                                //get all filenames already taken
+                                var arrayOfFileNames: [String] = []
+                                do {
+                                    let items = try FileManager.default.contentsOfDirectory(at: FileManager.documentDirectoryURL.appendingPathComponent("My Designs"), includingPropertiesForKeys: nil)
+        //                            print("Listing Files: ")
+                                    for item in items {
+        //                                print("Found: ", item)
+                                        let shorterArr = item.path.split(separator: "/")
+                                        var shorter = shorterArr.last!
+        //                                print("Shorter: ", shorter)
+                                        shorter.removeLast(4)
+                                        arrayOfFileNames.append(String(shorter))
+                                    }
+                                } catch {
+                                    // failed to read directory – bad permissions, perhaps?
+        //                            print("2- Failed to read File name in Directory: ")
+        //                            print("Error info: \(error)")
+                                }
+        //                        print("Array of File names: ", arrayOfFileNames)
+
+                                //fix duplicates
+                                let holder = name
+                                var i = 1
+                                while arrayOfFileNames.contains(name) {
+                                    name = holder
+                                    name += "("
+                                    name += String(i)
+                                    name += ")"
+                                    i += 1
+                                }
+        //                        print("Unique Name: ", name)
+                                //name is now unique
+                                
+                                //check if local folder has been created, if not create it
+                                let folderPath = FileManager.documentDirectoryURL.appendingPathComponent("My Designs")
+                                let folderExists = (try? folderPath.checkResourceIsReachable()) ?? false
+                                if !folderExists {
+                                    do {
+                                        try FileManager.default.createDirectory(at: folderPath, withIntermediateDirectories: false)
+        //                                print("Created My Designs Directory")
+                                    } catch {
+                                        //failed to create Directory
+        //                                print("Failed to create My Designs directory")
+                                        //abort
+                                        return
+                                    }
+                                }
+                                
+                                //STORE currentDesign to file in My Designs
+                                let filename = FileManager.documentDirectoryURL.appendingPathComponent("My Designs").appendingPathComponent(name + ".txt")
+                                //attempt to make and write to file
+                                do {
+                                    try self.currentDesign.write(to: filename, atomically: true, encoding: String.Encoding.utf8)
+                                    if(shouldClearWorkspaceAfter){
+                                        //delete design now if requested
+                                        self.clearMyWorkspace()
+                                    }
+                                } catch {
+                                    // failed to write file – bad permissions, bad filename, missing permissions, or more likely it can't be converted to the encoding
+        //                            print("Failed to write to file")
+                                    //show user the failure
+                                    let alert = UIAlertController(title: "Save Failed", message: "Try again with a different name", preferredStyle: .alert)
+                                    let OK = UIAlertAction(title: "OK", style: .default) { (action:UIAlertAction!) in
+        //                                print("Pressed OK")
+                                    }
+                                    alert.addAction(OK)
+                                    self.present(alert, animated: true, completion: nil)
+                                }
+                            }
+                        }))
+
+                    self.present(alert, animated: true, completion: nil)
                 }
-
-                alert.addAction(UIAlertAction(title: "Save", style: .default, handler: { [weak alert] (_) in
-                    guard let textField = alert?.textFields?[0], let userText = textField.text else { return }
-                    //here there is user inputted text
-//                    print("Inputted Name: ", userText)
-                    if(userText != ""){
-                        var name = userText
-                        //remove all unsafe url characters
-                        let unsafeURLCharacters = ["/", ":", ";", "|"]
-                        //Safeing url
-                        name.removeAll(where: { unsafeURLCharacters.contains(String($0)) })
-//                        print("Safe Name: ", name)
-                        if(name == ""){
-                            //alert if removing safe characters brought name to an empty string
-                            let alert2 = UIAlertController(title: "Unsafe Name", message: "Try using more standard characters in name", preferredStyle: .alert)
-                            let OK2 = UIAlertAction(title: "OK", style: .default) { (action:UIAlertAction!) in
-//                                print("Pressed OK 2")
-                            }
-                            alert2.addAction(OK2)
-                            self.present(alert2, animated: true, completion: nil)
-                            //abort saving
-                            return
-                        }
-                        
-                        //get all filenames already taken
-                        var arrayOfFileNames: [String] = []
-                        do {
-                            let items = try FileManager.default.contentsOfDirectory(at: FileManager.documentDirectoryURL.appendingPathComponent("My Designs"), includingPropertiesForKeys: nil)
-//                            print("Listing Files: ")
-                            for item in items {
-//                                print("Found: ", item)
-                                let shorterArr = item.path.split(separator: "/")
-                                var shorter = shorterArr.last!
-//                                print("Shorter: ", shorter)
-                                shorter.removeLast(4)
-                                arrayOfFileNames.append(String(shorter))
-                            }
-                        } catch {
-                            // failed to read directory – bad permissions, perhaps?
-//                            print("2- Failed to read File name in Directory: ")
-//                            print("Error info: \(error)")
-                        }
-//                        print("Array of File names: ", arrayOfFileNames)
-
-                        //fix duplicates
-                        let holder = name
-                        var i = 1
-                        while arrayOfFileNames.contains(name) {
-                            name = holder
-                            name += "("
-                            name += String(i)
-                            name += ")"
-                            i += 1
-                        }
-//                        print("Unique Name: ", name)
-                        //name is now unique
-                        
-                        //check if local folder has been created, if not create it
-                        let folderPath = FileManager.documentDirectoryURL.appendingPathComponent("My Designs")
-                        let folderExists = (try? folderPath.checkResourceIsReachable()) ?? false
-                        if !folderExists {
-                            do {
-                                try FileManager.default.createDirectory(at: folderPath, withIntermediateDirectories: false)
-//                                print("Created My Designs Directory")
-                            } catch {
-                                //failed to create Directory
-//                                print("Failed to create My Designs directory")
-                                //abort
-                                return
-                            }
-                        }
-                        
-                        //STORE currentDesign to file in My Designs
-                        let filename = FileManager.documentDirectoryURL.appendingPathComponent("My Designs").appendingPathComponent(name + ".txt")
-                        //attempt to make and write to file
-                        do {
-                            try self.currentDesign.write(to: filename, atomically: true, encoding: String.Encoding.utf8)
-                        } catch {
-                            // failed to write file – bad permissions, bad filename, missing permissions, or more likely it can't be converted to the encoding
-//                            print("Failed to write to file")
-                            //show user the failure
-                            let alert = UIAlertController(title: "Save Failed", message: "Try again with a different name", preferredStyle: .alert)
-                            let OK = UIAlertAction(title: "OK", style: .default) { (action:UIAlertAction!) in
-//                                print("Pressed OK")
-                            }
-                            alert.addAction(OK)
-                            self.present(alert, animated: true, completion: nil)
-                        }
-                    }
-                }))
-
-            self.present(alert, animated: true, completion: nil)
-        }
-        
     }
     //receive file of model from another app
     func incomingDesignURL(url: URL){
@@ -443,15 +579,17 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
     //put objects into the scene
     func addItemToPosition(position: SCNVector3, texture: Int) {
-        
+        //make box
         let box = SCNBox(width: CGFloat(edgeLength), height: CGFloat(edgeLength), length: CGFloat(edgeLength), chamferRadius: 0)
-        
+        //set correct material
         let material = SCNMaterial()
         material.diffuse.contents = UIImage(named: textures[texture])
         box.materials = [material]
-        
+        //set node as box at position
         let node = SCNNode(geometry: box)
         node.position = position
+        //lighting
+//        node.castsShadow = true
         self.sceneView.scene.rootNode.addChildNode(node)
     }
     //find integer latice position of the new cube
@@ -584,34 +722,34 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
     @objc
     func didSwipeRight(_ gesture: UISwipeGestureRecognizer) {
-        if(selectedTexture != textures.count - 1 && designToPlace == ""){
-            selectedTexture += 1;
-            //update image
-            currentBlock.image = UIImage(named: textures[selectedTexture])
+        if(selectedTexture != 0 && designToPlace == ""){
+            selectedTexture -= 1;
+            //update textures
+            showTextures()
         }
     }
     @objc
     func didSwipeLeft(_ gesture: UISwipeGestureRecognizer) {
-        if(selectedTexture != 0 && designToPlace == ""){
-            selectedTexture -= 1;
-            //update image
-            currentBlock.image = UIImage(named: textures[selectedTexture])
+        if(selectedTexture != textures.count - 1 && designToPlace == ""){
+            selectedTexture += 1;
+            //update textures
+            showTextures()
         }
     }
     @objc
     func didSwipeUp(_ gesture: UISwipeGestureRecognizer) {
-        if(selectedTexture + 6 < textures.count && designToPlace == ""){
-            selectedTexture += 6;
-            //update image
-            currentBlock.image = UIImage(named: textures[selectedTexture])
+        if(selectedTexture - texturesPerCategory >= 0 && designToPlace == ""){
+            selectedTexture -= texturesPerCategory;
+            //update textures
+            showTextures()
         }
     }
     @objc
     func didSwipeDown(_ gesture: UISwipeGestureRecognizer) {
-        if(selectedTexture - 6 >= 0 && designToPlace == ""){
-            selectedTexture -= 6;
-            //update image
-            currentBlock.image = UIImage(named: textures[selectedTexture])
+        if(selectedTexture + texturesPerCategory < textures.count && designToPlace == ""){
+            selectedTexture += texturesPerCategory;
+            //update textures
+            showTextures()
         }
     }
     //build creations from String

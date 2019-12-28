@@ -200,6 +200,7 @@ extension MenuViewController: UITableViewDelegate {
 //        print("Item: ", item)
         //return item and folder of design selected
         let folder = key(for: indexPath.section)
+        //Commented two lines out below for testing
         theDelegate?.designSelected(design: item, folder: folder)
         self.dismiss(animated: true, completion: nil)
     }
