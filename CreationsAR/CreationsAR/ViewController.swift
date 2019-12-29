@@ -42,7 +42,9 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     @IBOutlet weak var textureAbove: UIImageView!
     @IBOutlet weak var textureLeft: UIImageView!
     
-    
+    /**
+     This function sets up everything graphical when the view loads
+     */
     override func viewDidLoad() {
         
         super.viewDidLoad()
@@ -51,7 +53,23 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         sceneView.delegate = self
         
         //lighting stuff
-//        sceneView.autoenablesDefaultLighting = false;
+        sceneView.autoenablesDefaultLighting = false
+        sceneView.automaticallyUpdatesLighting = true
+//        sceneView.autoenablesDefaultLighting = true
+        
+        //coaching user to find a plane to place stuff
+        let coachingOverlay = ARCoachingOverlayView()
+        //size correctly
+        coachingOverlay.frame = sceneView.frame
+        coachingOverlay.autoresizingMask = [
+          .flexibleWidth, .flexibleHeight
+        ]
+        sceneView.addSubview(coachingOverlay)
+        //look for horizontal planes
+        coachingOverlay.goal = .horizontalPlane
+        //match session with AR view
+        coachingOverlay.session = sceneView.session
+        
         
     //Tap Gestures:
         //start recognizing tap gestures
@@ -115,7 +133,11 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         clearSpace.addGestureRecognizer(clearSpaceRecognizer)
         
     }
-    //change texture to texture in category below
+    
+    /**
+     Change selected texture to texture in the category before
+     - Parameter gesture: The tap guesture of the user
+     */
     @objc
     func changeTextureDown(_ gesture: UITapGestureRecognizer){
         if(selectedTexture - texturesPerCategory >= 0 && designToPlace == ""){
@@ -124,7 +146,11 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             showTextures()
         }
     }
-    //change texture to texture in category above
+    
+    /**
+     Change selected texture to texture in the category above
+    - Parameter gesture: The tap guesture of the user
+    */
     @objc
     func changeTextureUp(_ gesture: UITapGestureRecognizer){
         if(selectedTexture + texturesPerCategory < textures.count && designToPlace == ""){
@@ -133,7 +159,11 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             showTextures()
         }
     }
-    //change texture to texture to right
+    
+    /**
+     Change selected texture to texture immediately after
+    - Parameter gesture: The tap guesture of the user
+    */
     @objc
     func changeTextureRight(_ gesture: UITapGestureRecognizer){
         if(selectedTexture + 1 < textures.count && designToPlace == ""){
@@ -142,7 +172,11 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             showTextures()
         }
     }
-    //change texture to texture to left
+    
+    /**
+     Change selected texture to texture immediately before
+    - Parameter gesture: The tap guesture of the user
+    */
     @objc
     func changeTextureLeft(_ gesture: UITapGestureRecognizer){
         if(selectedTexture - 1 >= 0 && designToPlace == ""){
@@ -151,7 +185,9 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             showTextures()
         }
     }
-    //set all block images based on new selected index
+    /**
+     Update images in bottom right to show the selected texture and the textures next accessable around it
+    */
     func showTextures(){
         currentBlock.image = UIImage(named: textures[selectedTexture])
         //above
@@ -180,7 +216,10 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
     }
     
-    //button configuration
+    /**
+     Open table of saved designs to be loaded into the workspace, shared, or deleted
+    - Parameter gesture: The tap guesture of the user
+    */
     @objc
     func loadNewModel(_ gesture: UITapGestureRecognizer) {
         //open table view here
@@ -191,7 +230,12 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         //transition
         self.present(table!, animated: true, completion: nil)
     }
-    //model returned
+    
+    /**
+     The function receives direction for a creation file which was selected in the table view, pulls out the design from the file, and prepares for it to be placed by the user into the view.
+    - Parameter design: The file name for the design of the creation the user selected in the table view
+    - Parameter folder: The folder of designs which the wanted file is stored in
+    */
     func innerDesignSelected(design: String, folder: String) {
         print("The Current Design is empty: ", Bool(design == ""))
         //design is now the String for the returned design
@@ -213,14 +257,22 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         table?.dismiss(animated: true, completion: nil)
         actuallyClearTheSpace()
     }
+    
+    /**
+     Takes input from button and calls for the space to be cleared
+    - Parameter gesture: The tap guesture of the user
+    */
     @objc
     func clearTheSpace(_ gesture: UITapGestureRecognizer) {
         //call helper function to clear the workspace
         actuallyClearTheSpace()
     }
-    //actually clears the space
+
+    /**
+     This function clears all blocks from the workspace after asking the user whether to save their current design, and it removes the root position so the workspace will be centered at the next place the user builds.
+    */
     func actuallyClearTheSpace() {
-        print("cur Des: \(currentDesign)")
+//        print("cur Des: \(currentDesign)")
         if currentDesign != "" {
             //set up Alert to ask user if they want to save the design
             let askSave = UIAlertController(title: "Save Design?", message: "Press 'Save' to Save. Otherwise, data will be lost", preferredStyle: UIAlertController.Style.alert)
@@ -239,7 +291,9 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             rootPosition = nil
         }
     }
-    //helper function clears workspace
+    /**
+     Helper function for actuallyClearTheSpace(). Goes through the nodes and removes all which are cubes
+    */
     func clearMyWorkspace(){
         //clear previous designs
         for childNode in sceneView.scene.rootNode.childNodes {
@@ -251,12 +305,21 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         rootPosition = nil
         currentDesign = ""
     }
+    
+    /**
+     Takes button input and calls for the design to be saved and not deleted afterwards
+     - Parameter gesture: The tap guesture of the user
+     */
     @objc
     func saveThatModel(_ gesture: UITapGestureRecognizer) {
         //call function below to save when button is pressed
         save(clearAfter: false)
     }
-    //Save model
+    
+    /**
+    Saves the model currently in the workspace. Function prompts user for a name to save the design under, and makes the name unique before saving the file.
+     - Parameter clearAfter:If this parameter is set to true, the workspace will be cleared after the file is saved
+     */
     func save(clearAfter shouldClearWorkspaceAfter: Bool){
         //ask for name to save under
                 if(currentDesign != ""){
@@ -362,7 +425,11 @@ class ViewController: UIViewController, ARSCNViewDelegate {
                     self.present(alert, animated: true, completion: nil)
                 }
     }
-    //receive file of model from another app
+    
+    /**
+     Files sent to this app CreationsAR are received in this function from the app delegate as a url to the file. This function saves that file to the Shared Designs folder, and prepares the design to be placed by the user into the workspace
+     - Parameter url: The url that the iOS operating system gave the app to access the file being sent to the app
+     */
     func incomingDesignURL(url: URL){
         //File path is here: (e.g. file:///private/var/mobile/Containers/Data/Application/340448CA-7E9F-4B19-92DE-7F99EF11DAA8/Documents/Inbox/stairs-7.txt)
         do {
@@ -444,7 +511,10 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
     }
     
-    //didTap function for when gestures are regonized byU ITapGestureRecognizer above
+    /**
+     This function detects when the user has tapped on the Augmented Reality view. This function will place a block where the user pressed if they have tapped on a detected surface in the real world. If no blocks had been place before, this function also sets up the latice which makes every block places afterwards allign with this first block, and it sets the 64 block cubed workspace centered at this first block.
+     - Parameter gesture: The tap guesture of the user
+     */
     @objc
     func didTap(_ gesture: UITapGestureRecognizer) {
         
@@ -575,9 +645,13 @@ class ViewController: UIViewController, ARSCNViewDelegate {
                 //Add print statements here for testing purposes
             }
         }
-    
     }
-    //put objects into the scene
+
+    /**
+     Places a block at the position specified by the vector and with the texture specified by the index given with respect to the textures array
+     - Parameter position: The vector for where to place the block in the real world with AR
+     - Parameter texture: The index in the textures array for which texture the block should have
+     */
     func addItemToPosition(position: SCNVector3, texture: Int) {
         //make box
         let box = SCNBox(width: CGFloat(edgeLength), height: CGFloat(edgeLength), length: CGFloat(edgeLength), chamferRadius: 0)
@@ -585,14 +659,27 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         let material = SCNMaterial()
         material.diffuse.contents = UIImage(named: textures[texture])
         box.materials = [material]
+        
+        //TESTING: lighting stuff
+//        let reflectiveMaterial = SCNMaterial()
+//        reflectiveMaterial.lightingModel = .physicallyBased
+//        reflectiveMaterial.metalness.contents = 1.0
+//        reflectiveMaterial.roughness.contents = 0
+//        box.materials = [reflectiveMaterial]
+        
         //set node as box at position
         let node = SCNNode(geometry: box)
         node.position = position
-        //lighting
-//        node.castsShadow = true
+        //lighting stuff
+        node.castsShadow = true
         self.sceneView.scene.rootNode.addChildNode(node)
     }
-    //find integer latice position of the new cube
+
+    /**
+     Function stores the position with the texture currently selected in the workspace, if the cube wanting to be places is within the workspace. This function should probably be removed as it doesn't serve much of a purpose. Remove and instead place calls of it with getting the string of position itself and then storing to current designs string if in bounds.
+     - Parameter position: The vector position for where the cube is being places
+     - Returns: A Bool of whether the cube is within range or not.
+     */
     func storeNewCubePosition(_ position: SCNVector3) -> Bool {
         
         let str = getStringOfPosition(position)
@@ -607,7 +694,12 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
         
     }
-    //get String representation of position
+    
+    /**
+     This function gets a 4 character (4 byte with ascii string storage) representation of a cube at a position and the currently selected texture.
+     - Parameter position: The position to get the String representation of
+     - Returns: A four character String. The first 3 characters are the X, Y, and Z, coordinates within the cube latice, and the 4th character stores the currently selected texture
+     */
     func getStringOfPosition(_ position: SCNVector3) -> String {
         
         //UNWRAP optional vector: rootPosition
@@ -646,7 +738,13 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         str += String(chars64[selectedTexture])
         return str
     }
-    //finds if the design string contains the subStr in a 4 character frame
+
+    /**
+     Tests if a string contains a substring within four character frames. This checks if a block is stored, as every four characters is a block in a design String. This function avoids misfinding a block if the four character string happens to be present within say, the last two character of one block's representation and the first two character of the cube immediately after.
+     - Parameter design: The design String which the function is checking whether a block is stored within
+     - Parameter subStr: The String for the block the function is checking for
+     - Returns: Returns the Bool 'true' if block representation is within String, 'false' if not
+     */
     func containsInFrame(design: String, subStr: String) -> Bool {
         var contains: Bool = false
         var i = 0
@@ -669,7 +767,13 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
         return contains
     }
-    //finds if the design string contains the subStr in a 4 character frame, and removes all occurences
+
+    /**
+     Removes all occurences of a block's string representation within a design String. This function only checks within four character frames so that only requested blocks are removed
+     - Parameter design: The design String which the function is checking to remove from
+     - Parameter subStr: The String for the block the function is looking for to remove
+     - Returns: A String of the new design String with all occurences of the searched for block removed
+     */
     func removeInFrame(design: String, subStr: String) -> String {
         var newString: String = ""
         var i = 0
@@ -692,7 +796,11 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
         return newString
     }
-    //delete SCNNode longPressed on
+    
+    /**
+     This function detects when a user long taps on a block and deletes that block from the view and the storing design string
+     - Parameter gesture: The user long press gesture
+     */
     @objc
     func didLongTap(_ gesture: UILongPressGestureRecognizer) {
         
@@ -720,6 +828,11 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
         
     }
+    
+    /**
+     This function is called when the user swiped to the right
+     - Parameter gesture: The user swipe gesture
+     */
     @objc
     func didSwipeRight(_ gesture: UISwipeGestureRecognizer) {
         if(selectedTexture != 0 && designToPlace == ""){
@@ -728,6 +841,11 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             showTextures()
         }
     }
+    
+    /**
+    This function is called when the user swiped to the left
+    - Parameter gesture: The user swipe gesture
+    */
     @objc
     func didSwipeLeft(_ gesture: UISwipeGestureRecognizer) {
         if(selectedTexture != textures.count - 1 && designToPlace == ""){
@@ -736,6 +854,11 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             showTextures()
         }
     }
+    
+    /**
+    This function is called when the user swiped up
+    - Parameter gesture: The user swipe gesture
+    */
     @objc
     func didSwipeUp(_ gesture: UISwipeGestureRecognizer) {
         if(selectedTexture - texturesPerCategory >= 0 && designToPlace == ""){
@@ -744,6 +867,11 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             showTextures()
         }
     }
+    
+    /**
+    This function is called when the user swiped down
+    - Parameter gesture: The user swipe gesture
+    */
     @objc
     func didSwipeDown(_ gesture: UISwipeGestureRecognizer) {
         if(selectedTexture + texturesPerCategory < textures.count && designToPlace == ""){
@@ -752,7 +880,12 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             showTextures()
         }
     }
-    //build creations from String
+    
+    /**
+     Takes in design String and a root position in the real world, and builds the design into the view
+     - Parameter design: The design String to be build into the view
+     - Parameter rPos: The real world root position in the Augmented Reality view to base the designs position off of
+     */
     func loadCreationFromString(design: String, rPos: SCNVector3){
         var four: [Int] = [ 0, 0, 0, 0]
         var cntr: Int = 0
@@ -785,6 +918,13 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
         
+        //lighting stuff
+        configuration.isLightEstimationEnabled = true
+        configuration.environmentTexturing = .automatic
+        
+        
+        
+        
         //Enable detection of horizontal planes
         configuration.planeDetection = .horizontal
         
@@ -804,7 +944,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
 
     // MARK: - ARSCNViewDelegate
     
-    //show horizontal planes found
+    //Can show detected planes in world for testing purposes
     func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
         
         //FOR TESTING: SHOWS DETECTED PLANES IN WORLD
@@ -836,9 +976,16 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
 }
 
-//receive information back from the tableView view controller
+/**
+ Extention Of this view controller used by the table view (MenuViewController) to send back selected designs to main view to be put into the workspace.
+ */
 extension ViewController: LoadDesignDelegate {
     //call function within to work with information
+    /**
+     Function passes along design filename and folder
+     - Parameter design: File name of design
+     - Parameter folder: Folder where design file is stored
+     */
     func designSelected(design: String, folder: String) {
         innerDesignSelected(design: design, folder: folder)
     }
