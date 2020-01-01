@@ -8,7 +8,9 @@
 
 import UIKit
 
-//how this tableView view controller passes information back to the main
+/**
+ Protocol allows this view controller to pass information back to the main view controller
+ */
 protocol LoadDesignDelegate: AnyObject {
     func designSelected(design: String, folder: String)
 }
@@ -27,6 +29,7 @@ class MenuViewController: UIViewController {
     //for passing back design
     weak var theDelegate:LoadDesignDelegate?
     
+    //Function gets all information from file system and displays it in categories in the table view
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -95,7 +98,11 @@ class MenuViewController: UIViewController {
         self.designsTable.tableHeaderView = header
         
     }
-    //share file on long press
+
+    /**
+     Open apple share sheet to share the selected design file on long press
+     - Parameter gesture: The long press gesture of the user
+     */
     @objc
     func longPress(_ gesture: UILongPressGestureRecognizer) {
         //detect press here - Only care about beginning
@@ -116,7 +123,10 @@ class MenuViewController: UIViewController {
         }
     }
     
-    //helper functions
+    /**
+     Helper function get dictionary key in theItems array for section
+     - Parameter for: The section for which to search for the dictionary key of
+     */
     func key(for section: Int) -> String {
         let keys = Array(self.theItems.keys).sorted { first, last -> Bool in
             if first == "My Designs" {
@@ -128,15 +138,28 @@ class MenuViewController: UIViewController {
         return key
     }
     
+    /**
+     Helper function gets array of all Strings from theItems array from a section (i.e., gets all filenames/design names of a section/folder)
+     - Parameter in: the section in which to get the names from
+     */
     func items(in section: Int) -> [String] {
         let key = self.key(for: section)
         return self.theItems[key]!
     }
     
+    /**
+     Gets the name of the design selected at a certain index path in the table view
+     - Parameter at: The IndexPath of the selected name
+     */
     func item(at indexPath: IndexPath) -> String {
         let items = self.items(in: indexPath.section)
         return items[indexPath.item]
     }
+    
+    /**
+     Remove file of item at IndexPath in table view (On swiped and deleted table view cell)
+     - Parameter at: The Index Path of the item for which the file will be deleted
+     */
     func removeItem(at indexPath: IndexPath) {
         let theKey = key(for: indexPath.section)
         var arr = theItems[theKey]
@@ -152,7 +175,8 @@ class MenuViewController: UIViewController {
     }
 
 }
-//for reading files
+
+//for reading files - Asks iOS operating system where the app can find its files
 extension FileManager {
     
     static var documentDirectoryURL: URL {
@@ -162,6 +186,9 @@ extension FileManager {
     
 }
 
+/**
+ Extension loads all needed data and sections into the tableView to be displayed to the user
+ */
 extension MenuViewController: UITableViewDataSource {
     
     func numberOfSections(in tableView: UITableView) -> Int {
@@ -186,6 +213,9 @@ extension MenuViewController: UITableViewDataSource {
     
 }
 
+/**
+ Delegate handles function and interactions for the TableView.
+ */
 extension MenuViewController: UITableViewDelegate {
 
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
@@ -196,8 +226,6 @@ extension MenuViewController: UITableViewDelegate {
         tableView.deselectRow(at: indexPath, animated: true)
 
         let item = self.item(at: indexPath)
-        //ITEM IS THE SELCTED THING!!!
-//        print("Item: ", item)
         //return item and folder of design selected
         let folder = key(for: indexPath.section)
         //Commented two lines out below for testing
