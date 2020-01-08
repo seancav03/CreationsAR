@@ -129,9 +129,9 @@ class MenuViewController: UIViewController {
      */
     func key(for section: Int) -> String {
         let keys = Array(self.theItems.keys).sorted { first, last -> Bool in
-            if first == "My Designs" {
-                return true
-            }
+//            if first == "My Designs" {
+//                return true
+//            }
             return first < last
         }
         let key = keys[section]

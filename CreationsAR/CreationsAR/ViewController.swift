@@ -624,6 +624,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
         
         if let faceIndex = BoxFace(rawValue: hitTestResult.first?.faceIndex ?? -1){
+//            print("Face Index: \(hitTestResult.first?.faceIndex)")
             //faceIndex now equals one of the values of the enum BoxFace above
             var position = hitTestResult.first?.node.position
             switch faceIndex{
