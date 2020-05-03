@@ -27,7 +27,7 @@ class MenuViewController: UIViewController {
     ]
     
     //for passing back design
-    weak var theDelegate:LoadDesignDelegate?
+    weak var theDelegate: LoadDesignDelegate?
     
     //Function gets all information from file system and displays it in categories in the table view
     override func viewDidLoad() {

@@ -16,6 +16,7 @@
 		1454D98123959D4D007A253D /* CreationsARTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1454D98023959D4D007A253D /* CreationsARTests.swift */; };
 		1454D98C23959D4D007A253D /* CreationsARUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1454D98B23959D4D007A253D /* CreationsARUITests.swift */; };
 		1454D99A23A1AB2A007A253D /* MenuViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1454D99923A1AB2A007A253D /* MenuViewController.swift */; };
+		14A01FBD245A604400DFD920 /* MaterialsCollectionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14A01FBC245A604400DFD920 /* MaterialsCollectionViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -51,6 +52,7 @@
 		1454D98B23959D4D007A253D /* CreationsARUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreationsARUITests.swift; sourceTree = "<group>"; };
 		1454D98D23959D4D007A253D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		1454D99923A1AB2A007A253D /* MenuViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuViewController.swift; sourceTree = "<group>"; };
+		14A01FBC245A604400DFD920 /* MaterialsCollectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialsCollectionViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -108,6 +110,7 @@
 				1454D97223959D4C007A253D /* Assets.xcassets */,
 				1454D97423959D4C007A253D /* LaunchScreen.storyboard */,
 				1454D99923A1AB2A007A253D /* MenuViewController.swift */,
+				14A01FBC245A604400DFD920 /* MaterialsCollectionViewController.swift */,
 				1454D97723959D4C007A253D /* Info.plist */,
 			);
 			path = CreationsAR;
@@ -265,6 +268,7 @@
 			files = (
 				1454D96E23959D45007A253D /* ViewController.swift in Sources */,
 				1454D99A23A1AB2A007A253D /* MenuViewController.swift in Sources */,
+				14A01FBD245A604400DFD920 /* MaterialsCollectionViewController.swift in Sources */,
 				1454D96A23959D45007A253D /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -439,14 +443,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 3U4S3TC5JY;
+				DEVELOPMENT_TEAM = KU7SQUJG6S;
 				INFOPLIST_FILE = CreationsAR/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.SeanCoding.CreationsAR;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cavalieri.CreationsAR;
 				PRODUCT_NAME = CreationsAR;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -458,14 +462,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 3U4S3TC5JY;
+				DEVELOPMENT_TEAM = KU7SQUJG6S;
 				INFOPLIST_FILE = CreationsAR/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.SeanCoding.CreationsAR;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cavalieri.CreationsAR;
 				PRODUCT_NAME = CreationsAR;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
