@@ -3,7 +3,7 @@
     <device id="retina6_1" orientation="portrait" appearance="light"/>
     <dependencies>
         <deployment identifier="iOS"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="16086"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="16087"/>
         <capability name="Safe area layout guides" minToolsVersion="9.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
@@ -68,6 +68,13 @@
                                     <action selector="toMaterialsView:" destination="BV1-FR-VrT" eventType="touchUpInside" id="6hJ-j1-luA"/>
                                 </connections>
                             </button>
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" image="gamecontroller.fill" catalog="system" translatesAutoresizingMaskIntoConstraints="NO" id="7Bd-QZ-wUc">
+                                <rect key="frame" x="160" y="793" width="50" height="47.5"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="50" id="22u-qO-Ua7"/>
+                                    <constraint firstAttribute="width" constant="50" id="Act-Hj-YSt"/>
+                                </constraints>
+                            </imageView>
                         </subviews>
                         <color key="backgroundColor" systemColor="systemBackgroundColor" cocoaTouchSystemColor="whiteColor"/>
                         <constraints>
@@ -80,6 +87,8 @@
                             <constraint firstItem="MiC-tH-Gtg" firstAttribute="leading" secondItem="XaW-Rn-kR2" secondAttribute="trailing" constant="20" id="KVQ-aW-X7H"/>
                             <constraint firstItem="fQZ-KI-GVf" firstAttribute="bottom" secondItem="HgQ-4Z-AAa" secondAttribute="bottom" constant="20" id="Olt-Mz-nKe"/>
                             <constraint firstItem="XaW-Rn-kR2" firstAttribute="leading" secondItem="fQZ-KI-GVf" secondAttribute="leading" constant="20" id="Pzc-Ul-qVI"/>
+                            <constraint firstItem="7Bd-QZ-wUc" firstAttribute="leading" secondItem="vfJ-Rb-1rd" secondAttribute="trailing" constant="20" id="Rbq-Uk-KxZ"/>
+                            <constraint firstItem="fQZ-KI-GVf" firstAttribute="bottom" secondItem="7Bd-QZ-wUc" secondAttribute="bottom" constant="20" id="TIv-NM-EzO"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="bottom" secondItem="fQZ-KI-GVf" secondAttribute="bottom" id="Ur5-4Y-FSL"/>
                             <constraint firstItem="vfJ-Rb-1rd" firstAttribute="leading" secondItem="69y-2e-LPg" secondAttribute="trailing" constant="20" id="ipy-8J-diM"/>
                             <constraint firstItem="69y-2e-LPg" firstAttribute="leading" secondItem="fQZ-KI-GVf" secondAttribute="leading" constant="20" id="jEO-6Z-Dqt"/>
@@ -98,6 +107,7 @@
                         <outlet property="modelName" destination="MiC-tH-Gtg" id="hJU-lG-7pL"/>
                         <outlet property="saveModel" destination="vfJ-Rb-1rd" id="1FJ-LQ-mdx"/>
                         <outlet property="sceneView" destination="BrB-h1-WRS" id="5nT-qQ-ynl"/>
+                        <outlet property="startGame" destination="7Bd-QZ-wUc" id="Pv9-WC-4yo"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="SZV-WD-TEh" sceneMemberID="firstResponder"/>
@@ -163,6 +173,7 @@
     </scenes>
     <resources>
         <image name="clear.fill" catalog="system" width="128" height="114"/>
+        <image name="gamecontroller.fill" catalog="system" width="128" height="82"/>
         <image name="plus.circle.fill" catalog="system" width="128" height="121"/>
         <image name="tray.and.arrow.down.fill" catalog="system" width="128" height="114"/>
     </resources>

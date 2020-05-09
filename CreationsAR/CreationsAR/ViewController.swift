@@ -18,6 +18,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     @IBOutlet weak var saveModel: UIImageView!
     @IBOutlet weak var clearSpace: UIImageView!
     @IBOutlet weak var modelName: UILabel!
+    @IBOutlet weak var startGame: UIImageView!
     
     //for presenting view to select saved designs (and removing that view)
     var table: MenuViewController?
@@ -40,6 +41,9 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     var selectedTexture: Int = 0
     var designToPlace = ""
     var designToPlaceName = ""
+    
+    //games
+    var timer = Timer()
     
 
     @IBOutlet weak var currentMaterial: UIButton!
@@ -89,9 +93,22 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         longTapGesture.allowableMovement = 5
         sceneView.addGestureRecognizer(longTapGesture)
         
+    //Swipe Gestures
+        let swipeGestureUp = UISwipeGestureRecognizer(target: self, action: #selector(swipedUp(_:)))
+        swipeGestureUp.direction = UISwipeGestureRecognizer.Direction.up
+        let swipeGestureDown = UISwipeGestureRecognizer(target: self, action: #selector(swipedDown(_:)))
+        swipeGestureDown.direction = UISwipeGestureRecognizer.Direction.down
+        let swipeGestureLeft = UISwipeGestureRecognizer(target: self, action: #selector(swipedLeft(_:)))
+        swipeGestureLeft.direction = UISwipeGestureRecognizer.Direction.left
+        let swipeGestureRight = UISwipeGestureRecognizer(target: self, action: #selector(swipedRight(_:)))
+        swipeGestureRight.direction = UISwipeGestureRecognizer.Direction.right
+        sceneView.addGestureRecognizer(swipeGestureUp)
+        sceneView.addGestureRecognizer(swipeGestureDown)
+        sceneView.addGestureRecognizer(swipeGestureLeft)
+        sceneView.addGestureRecognizer(swipeGestureRight)
+        
     //Set current Material Image
         currentMaterial.setBackgroundImage(UIImage(named: textures[selectedTexture]), for: UIControl.State.normal)
-        
         
     //set up buttons
         let loadNModelRecognizer = UITapGestureRecognizer(target: self, action: #selector(loadNewModel(_:)))
@@ -103,6 +120,9 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         let clearSpaceRecognizer = UITapGestureRecognizer(target: self, action: #selector(clearTheSpace(_:)))
         clearSpace.isUserInteractionEnabled = true
         clearSpace.addGestureRecognizer(clearSpaceRecognizer)
+        let startGameRecognizer = UITapGestureRecognizer(target: self, action: #selector(startTheGame(_:)))
+        startGame.isUserInteractionEnabled = true
+        startGame.addGestureRecognizer(startGameRecognizer)
         
     //Set up model title
         self.modelName.text = "Untitled Design"
@@ -114,22 +134,201 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         
     }
-    @IBAction func toMaterialsView(_ sender: Any) {
+    
+    //MARK: MINI GAMES
+    
+    @objc
+    func startTheGame(_ gesture: UITapGestureRecognizer){
+        startSnake()
+    }
+    
+    var blockModificationAllowed = true
+    
+    var snakeParts: [Block] = []
+    var targetLength: Int = 5
+    var length: Int = 0
+    //Front = 0 - Top = 1 - Right = 2 - Back = 3 - Bottom = 4 - Left = 5
+    var direction = 0
+//    var startingOrientation: [Int] = [0, 1, 2, 3, 4, 5]
+    
+    func startSnake(){
         
+        if blockModificationAllowed {
+            //Game isn't already started, so start game
+            direction = 1
+            targetLength = 5
+            length = 0
+            snakeParts = []
+            
+            blockModificationAllowed = false
+            setRootToCamera(blocksAway: 10)
+//            startingOrientation = deviceOrientation()
+            snakeParts.append(Block(x: 31, y: 31, z: 31, texture: 1))
+            placeBlockObj(block: snakeParts.last!)
+            length += 1
+            timer = Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(snakeTimer), userInfo: nil, repeats: true)
+            
+        } else {
+            //end game
+            for b in snakeParts {
+                removeBlockObj(block: b)
+            }
+            snakeParts = []
+            
+            timer.invalidate()
+            timer = Timer()
+            blockModificationAllowed = true
+        }
+        
+
+        
+    }
+    
+    //directions: Up = 0 - Right = 1 - Down = 2 - Left = 3
+    func swiped(dir: Int) {
+        //Front = 0 - Top = 1 - Right = 2 - Back = 3 - Bottom = 4 - Left = 5
+        let rotation = deviceOrientation()
+        let cam = rotation.firstIndex(of: 0)!
+        let top = rotation.firstIndex(of: 1)!
+//        print("Cam:", cam, " Top:", top)
+        
+        let keys = [0: [1: 0, 5: 1, 4: 2, 2: 3], 3: [1: 0, 5: 3, 4: 2, 2: 1], 2: [1: 0, 0: 1, 4: 2, 3: 3], 5: [1: 0, 0:  3, 4: 2, 3: 1]]
+        
+        let val = keys[cam]?[top]
+        //if not a valid orientation, (aka up or down) do nothing
+        if val == nil { return }
+        
+        let lookup = [0: [0: 2, 1: 1, 2: 5, 3: 4], 3: [0: 5, 1: 1, 2: 2, 3: 4], 2: [0: 3, 1: 1, 2: 0, 3: 4], 5: [0: 0, 1: 1, 2: 3, 3: 4]]
+        
+        let adjusted = (val! + dir) % 4
+        
+        let output = (lookup[cam]?[adjusted])!
+        
+        //make sure the snake can turn in this direction
+        if output != direction && (output + 3) % 6 != direction {
+            direction = output
+        }
+        
+    }
+    
+    @objc
+    func snakeTimer(){
+        //entered in reverse order to match cube orientations
+        var spot: [Int] = [snakeParts.last!.z, snakeParts.last!.y, snakeParts.last!.x]
+        var tempDir = direction
+        var mag = 1
+        if [0, 2, 4].contains(tempDir) {
+            mag = -1
+        }
+        if tempDir >= 3 {
+            tempDir -= 3
+        }
+        spot[tempDir] += mag
+        //flipped to undo reverse order from above
+        snakeParts.append(Block(x: spot[2], y: spot[1], z: spot[0], texture: 1))
+        placeBlockObj(block: snakeParts.last!)
+        length += 1
+        
+        while length > targetLength {
+            removeBlockObj(block: snakeParts.first!)
+            snakeParts.removeFirst()
+            length -= 1
+        }
+        
+    }
+    
+    func deviceOrientation() -> [Int] {
+        //Round angles to orthogonal directions
+        var pitch = sceneView.session.currentFrame?.camera.eulerAngles.x ?? 0
+        var yaw = sceneView.session.currentFrame?.camera.eulerAngles.y ?? 0
+        var roll = sceneView.session.currentFrame?.camera.eulerAngles.z ?? 0
+//        print("---Pitch:", pitch, "Yaw:", yaw , "Roll:", roll)
+        if(pitch == 0 || yaw == 0 || roll == 0) { print("Failed") }
+        if(pitch < 0){ pitch = pitch + (2 * Float.pi) }
+        if(yaw < 0){ yaw = yaw + (2 * Float.pi) }
+        if(roll < 0){ roll = roll + (2 * Float.pi) }
+        pitch = (pitch / Float.pi) * 2.0
+        yaw = (yaw / Float.pi) * 2.0
+        roll = (roll / Float.pi) * 2.0
+        pitch = pitch.rounded()
+        yaw = yaw.rounded()
+        roll = roll.rounded()
+        if(pitch == 4.0) { pitch = 0.0 }
+        if(yaw == 4.0) { yaw = 0.0 }
+        if(roll == 4.0) { roll = 0.0 }
+//        print("Pitch:", pitch.rounded(), "Yaw:", yaw.rounded() , "Roll:", roll.rounded())
+//        print("Camera:", calcCameraOrientation(pitch: Int(pitch), yaw: Int(yaw), roll: Int(roll)))
+        return calcDeviceOrientation(pitch: Int(pitch), yaw: Int(yaw), roll: Int(roll))
+    }
+    
+    func calcDeviceOrientation(pitch p: Int, yaw y: Int, roll r: Int) -> [Int]{
+        
+        //Works for Every Case except Camera Pointed Upwards/Downwards, for some reason I'm not sure
+        
+        
+        var pitch = p
+        var yaw = y
+        var roll = r
+        
+        //Front = 0 - Top = 1 - Right = 2 - Back = 3 - Bottom = 4 - Left = 5
+        
+        //                 Front Top Right Back Bottom Left
+        var cube: [Int] = [ 0,    1,   2,   3,    4,    5  ]
+        while roll > 0 {
+            cube = rollCube(cube: cube)
+//            print("error")
+            roll -= 1
+        }
+        while yaw > 0 {
+            cube = yawCube(cube: cube)
+//            print("error")
+            yaw -= 1
+        }
+        while pitch > 0 {
+            cube = pitchCube(cube: cube)
+//            print("error")
+            pitch -= 1
+        }
+        return cube
+    }
+    func pitchCube(cube: [Int]) -> [Int] {
+//        let newCube: [Int] = [cube[4], cube[0], cube[2], cube[1], cube[3], cube[5]]
+        let newCube: [Int] = [cube[4], cube[0], cube[2], cube[1], cube[3], cube[5]]
+        return newCube
+    }
+    func yawCube(cube: [Int]) -> [Int] {
+        let newCube: [Int] = [cube[5], cube[1], cube[0], cube[2], cube[4], cube[3]]
+        return newCube
+    }
+    func rollCube(cube: [Int]) -> [Int] {
+        let newCube: [Int] = [cube[0], cube[5], cube[1], cube[3], cube[2], cube[4]]
+//        let newCube: [Int] = [cube[0], cube[2], cube[4], cube[3], cube[5], cube[1]]
+        return newCube
+    }
+    
+    class Block {
+        var x: Int
+        var y: Int
+        var z: Int
+        var texture: Int
+        init(x xIn: Int, y yIn: Int, z zIn: Int, texture textureIn: Int){
+            x = xIn
+            y = yIn
+            z = zIn
+            texture = textureIn
+        }
+    }
+    
+    //MARK: - Buttons -> 2nd V Controller
+    @IBAction func toMaterialsView(_ sender: Any) {
+         
         //open grid view here
         grid = self.storyboard!.instantiateViewController(withIdentifier: "MaterialsCollectionViewController") as? MaterialsCollectionViewController
         //prepare
         grid?.thisDelegate = self
-        
+
         //transition
         self.present(grid!, animated: true, completion: nil)
-    }
-    
-    
-    func innerChangeMaterial(index: Int){
-        selectedTexture = index
-        currentMaterial.setBackgroundImage(UIImage(named: textures[selectedTexture]), for: UIControl.State.normal)
-        grid?.dismiss(animated: true, completion: nil)
     }
     
     /**
@@ -145,6 +344,215 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         //transition
         self.present(table!, animated: true, completion: nil)
+    }
+    
+    //MARK: - Buttons/Gestures
+    
+    //For Games
+    @objc
+    func swipedUp(_ gesture: UISwipeGestureRecognizer){
+        swiped(dir: 0)
+    }
+    @objc
+    func swipedDown(_ gesture: UISwipeGestureRecognizer){
+        swiped(dir: 2)
+    }
+    @objc
+    func swipedLeft(_ gesture: UISwipeGestureRecognizer){
+        swiped(dir: 3)
+    }
+    @objc
+    func swipedRight(_ gesture: UISwipeGestureRecognizer){
+        swiped(dir: 1)
+    }
+    
+    /**
+     This function detects when the user has tapped on the Augmented Reality view. This function will place a block where the user pressed if they have tapped on a detected surface in the real world. If no blocks had been place before, this function also sets up the latice which makes every block places afterwards allign with this first block, and it sets the 64 block cubed workspace centered at this first block.
+     - Parameter gesture: The tap guesture of the user
+     */
+    @objc
+    func didTap(_ gesture: UITapGestureRecognizer) {
+        if blockModificationAllowed {
+            let sceneViewTappedOn = gesture.view as! ARSCNView
+            let touchCoordinates = gesture.location(in: sceneViewTappedOn)
+            
+            placeBlock(sceneViewTappedOn: sceneViewTappedOn, touchCoordinates: touchCoordinates)
+        }
+    }
+    
+    /**
+     This function detects when a user long taps on a block and deletes that block from the view and the storing design string
+     - Parameter gesture: The user long press gesture
+     */
+    @objc
+    func didLongTap(_ gesture: UILongPressGestureRecognizer) {
+        if blockModificationAllowed {
+            if(NSDate().timeIntervalSince1970 - 0.25 > time){
+                    time = NSDate().timeIntervalSince1970
+                    let sceneViewTappedOn = gesture.view as! ARSCNView
+                    let touchCoordinates = gesture.location(in: sceneViewTappedOn)
+            
+                    removeBlock(sceneViewTappedOn: sceneViewTappedOn, touchCoordinates: touchCoordinates)
+                }
+        }
+    }
+    
+    //MARK: - LOGIC
+    
+    func removeBlock(sceneViewTappedOn: ARSCNView, touchCoordinates: CGPoint) {
+        let hitTestResult = sceneView.hitTest(touchCoordinates, options: nil)
+        
+        guard let node = hitTestResult.first?.node else { return }
+        
+        //check if box if being deleted
+        if(node.description.contains("SCNBox")){
+            //remove node from string storage
+            let position: SCNVector3 = node.position
+            var str: String = getStringOfPosition(position)
+            str.removeLast()
+            //remove all occurences (within 4 char frame)
+            currentDesign = removeInFrame(design: currentDesign, subStr: str)
+            
+        }
+        
+        node.removeFromParentNode()
+        self.modelName.textColor = UIColor.red
+    }
+    
+    func placeBlock(sceneViewTappedOn: ARSCNView, touchCoordinates: CGPoint) {
+        
+        //check for pressed cube
+        let hitTestResult = sceneView.hitTest(touchCoordinates, options: nil)
+        
+        if !(hitTestResult.first?.node.geometry?.description.contains("SCNBox") ?? false) {
+            
+            
+            //if no cube pressed and none are placed already, look for surface for new anchor block
+            let hitTest = sceneViewTappedOn.hitTest(touchCoordinates, types: .existingPlaneUsingExtent)
+            
+
+            guard !hitTest.isEmpty, let hitTestResult = hitTest.first else {
+                return
+            }
+            //vector for 3D position of tap ( to know where to put object)
+            var position = SCNVector3(hitTestResult.worldTransform.columns.3.x,
+                                      hitTestResult.worldTransform.columns.3.y,
+                                      hitTestResult.worldTransform.columns.3.z)
+            
+            //if a node has been placed, make new nodes conform to lattice positioning system already set
+            if(rootPosition != nil){
+                //UNWRAP optional vector: rootPosition
+                let rPos = rootPosition!
+                //MOVE X into coordinate latice
+                let Xoffset = position.x - rPos.x
+                let diffX = Xoffset.truncatingRemainder(dividingBy: edgeLength)
+                //use diff and offset to move position to nearest latice point
+                position.x -= diffX
+                //round if closer to the father latice point
+                if(abs(diffX) > edgeLength/2){
+                    if(diffX < 0){
+                        position.x -= edgeLength
+                    } else {
+                        position.x += edgeLength
+                    }
+                }
+                //MOVE Y into coordinate latice
+                let Yoffset = position.y - rPos.y
+                let diffY = Yoffset.truncatingRemainder(dividingBy: edgeLength)
+                //use diff and offset to move position to nearest latice point
+                position.y -= diffY
+                //round if closer to the father latice point
+                if(abs(diffY) > edgeLength/2){
+                    if(diffY < 0){
+                        position.y -= edgeLength
+                    } else {
+                        position.y += edgeLength
+                    }
+                }
+                //MOVE Z into coordinate latice
+                let Zoffset = position.z - rPos.z
+                let diffZ = Zoffset.truncatingRemainder(dividingBy: edgeLength)
+                //use diff and offset to move position to nearest latice point
+                position.z -= diffZ
+                //round if closer to the father latice point
+                if(abs(diffZ) > edgeLength/2){
+                    if(diffZ < 0){
+                        position.z -= edgeLength
+                    } else {
+                        position.z += edgeLength
+                    }
+                }
+                //STORE position in String
+                let storeStr: String = getStringOfPosition(position)
+                var checkerString2: String = getStringOfPosition(position)
+                checkerString2.removeLast()
+                if(storeStr != "ERROR: OUT OF RANGE" && !containsInFrame(design: currentDesign, subStr: checkerString2)){
+                    currentDesign += storeStr
+                } else {
+                    return
+                }
+            } else {
+                //set root
+                rootPosition = position
+                if(designToPlace != ""){
+                    //build loaded object in area
+                    loadCreationFromString(design: designToPlace, rPos: rootPosition!)
+                    //Go back to normal blocks
+                    currentMaterial.setBackgroundImage(UIImage(named: textures[selectedTexture]), for: UIControl.State.normal)
+                    //prepare for ordinary actions
+                    currentDesign = designToPlace
+                    designToPlace = ""
+                    self.modelName.textColor = UIColor.green
+                    self.modelName.text = designToPlaceName
+                    designToPlaceName = ""
+                    return
+                } else {
+                    currentDesign += "YYY"
+                    currentDesign += String(chars64[selectedTexture])
+                }
+            }
+                
+            //call method to add item
+            addItemToPosition(position: position, texture: selectedTexture)
+            return
+        }
+        
+        //ADDS CUBE ADJACENT TO FACE OF PRESSED BLOCK
+        
+        //get description of which box face based off of faceIndex's of a cube
+        enum BoxFace: Int{
+        case Front = 0, Right = 2, Back = 4, Left = 6, Top = 8, Bottom = 10
+        }
+        
+        if let faceIndex = BoxFace(rawValue: hitTestResult.first?.faceIndex ?? -1){
+//            print("Face Index: \(hitTestResult.first?.faceIndex)")
+            //faceIndex now equals one of the values of the enum BoxFace above
+            var position = hitTestResult.first?.node.position
+            switch faceIndex{
+                case .Front: position?.z += edgeLength
+                case .Right: position?.x += edgeLength
+                case .Back: position?.z -= edgeLength
+                case .Left: position?.x -= edgeLength
+                case .Top: position?.y += edgeLength
+                case .Bottom: position?.y -= edgeLength
+            }
+            //if cube is within bounds of area, add to view
+            var checkerString: String = getStringOfPosition(position!)
+            checkerString.removeLast()
+            if(!containsInFrame(design: currentDesign, subStr: checkerString)){
+                if(storeNewCubePosition(position!)){
+                    addItemToPosition(position: position!, texture: selectedTexture)
+                }
+            } else {
+                //Add print statements here for testing purposes
+            }
+        }
+    }
+    
+    func innerChangeMaterial(index: Int){
+        selectedTexture = index
+        currentMaterial.setBackgroundImage(UIImage(named: textures[selectedTexture]), for: UIControl.State.normal)
+        grid?.dismiss(animated: true, completion: nil)
     }
     
     /**
@@ -182,7 +590,11 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     @objc
     func clearTheSpace(_ gesture: UITapGestureRecognizer) {
         //call helper function to clear the workspace
-        actuallyClearTheSpace()
+        if blockModificationAllowed {
+            actuallyClearTheSpace()
+        } else {
+            startSnake()
+        }
     }
 
     /**
@@ -475,146 +887,6 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
         
     }
-    
-    /**
-     This function detects when the user has tapped on the Augmented Reality view. This function will place a block where the user pressed if they have tapped on a detected surface in the real world. If no blocks had been place before, this function also sets up the latice which makes every block places afterwards allign with this first block, and it sets the 64 block cubed workspace centered at this first block.
-     - Parameter gesture: The tap guesture of the user
-     */
-    @objc
-    func didTap(_ gesture: UITapGestureRecognizer) {
-        
-        
-        let sceneViewTappedOn = gesture.view as! ARSCNView
-        let touchCoordinates = gesture.location(in: sceneViewTappedOn)
-        
-        //check for pressed cube
-        let hitTestResult = sceneView.hitTest(touchCoordinates, options: nil)
-        
-        
-        if !(hitTestResult.first?.node.geometry?.description.contains("SCNBox") ?? false) {
-            
-            
-            //if no cube pressed and none are placed already, look for surface for new anchor block
-            let hitTest = sceneViewTappedOn.hitTest(touchCoordinates, types: .existingPlaneUsingExtent)
-            
-
-            guard !hitTest.isEmpty, let hitTestResult = hitTest.first else {
-                return
-            }
-            //vector for 3D position of tap ( to know where to put object)
-            var position = SCNVector3(hitTestResult.worldTransform.columns.3.x,
-                                      hitTestResult.worldTransform.columns.3.y,
-                                      hitTestResult.worldTransform.columns.3.z)
-            
-            //if a node has been placed, make new nodes conform to lattice positioning system already set
-            if(rootPosition != nil){
-                //UNWRAP optional vector: rootPosition
-                let rPos = rootPosition!
-                //MOVE X into coordinate latice
-                let Xoffset = position.x - rPos.x
-                let diffX = Xoffset.truncatingRemainder(dividingBy: edgeLength)
-                //use diff and offset to move position to nearest latice point
-                position.x -= diffX
-                //round if closer to the father latice point
-                if(abs(diffX) > edgeLength/2){
-                    if(diffX < 0){
-                        position.x -= edgeLength
-                    } else {
-                        position.x += edgeLength
-                    }
-                }
-                //MOVE Y into coordinate latice
-                let Yoffset = position.y - rPos.y
-                let diffY = Yoffset.truncatingRemainder(dividingBy: edgeLength)
-                //use diff and offset to move position to nearest latice point
-                position.y -= diffY
-                //round if closer to the father latice point
-                if(abs(diffY) > edgeLength/2){
-                    if(diffY < 0){
-                        position.y -= edgeLength
-                    } else {
-                        position.y += edgeLength
-                    }
-                }
-                //MOVE Z into coordinate latice
-                let Zoffset = position.z - rPos.z
-                let diffZ = Zoffset.truncatingRemainder(dividingBy: edgeLength)
-                //use diff and offset to move position to nearest latice point
-                position.z -= diffZ
-                //round if closer to the father latice point
-                if(abs(diffZ) > edgeLength/2){
-                    if(diffZ < 0){
-                        position.z -= edgeLength
-                    } else {
-                        position.z += edgeLength
-                    }
-                }
-                //STORE position in String
-                let storeStr: String = getStringOfPosition(position)
-                var checkerString2: String = getStringOfPosition(position)
-                checkerString2.removeLast()
-                if(storeStr != "ERROR: OUT OF RANGE" && !containsInFrame(design: currentDesign, subStr: checkerString2)){
-                    currentDesign += storeStr
-                } else {
-                    return
-                }
-            } else {
-                //set root
-                rootPosition = position
-                if(designToPlace != ""){
-                    //build loaded object in area
-                    loadCreationFromString(design: designToPlace, rPos: rootPosition!)
-                    //Go back to normal blocks
-                    currentMaterial.setBackgroundImage(UIImage(named: textures[selectedTexture]), for: UIControl.State.normal)
-                    //prepare for ordinary actions
-                    currentDesign = designToPlace
-                    designToPlace = ""
-                    self.modelName.textColor = UIColor.green
-                    self.modelName.text = designToPlaceName
-                    designToPlaceName = ""
-                    return
-                } else {
-                    currentDesign += "YYY"
-                    currentDesign += String(chars64[selectedTexture])
-                }
-            }
-                
-            //call method to add item
-            addItemToPosition(position: position, texture: selectedTexture)
-            return
-        }
-        
-        //ADDS CUBE ADJACENT TO FACE OF PRESSED BLOCK
-        
-        //get description of which box face based off of faceIndex's of a cube
-        enum BoxFace: Int{
-        case Front = 0, Right = 2, Back = 4, Left = 6, Top = 8, Bottom = 10
-        }
-        
-        if let faceIndex = BoxFace(rawValue: hitTestResult.first?.faceIndex ?? -1){
-//            print("Face Index: \(hitTestResult.first?.faceIndex)")
-            //faceIndex now equals one of the values of the enum BoxFace above
-            var position = hitTestResult.first?.node.position
-            switch faceIndex{
-                case .Front: position?.z += edgeLength
-                case .Right: position?.x += edgeLength
-                case .Back: position?.z -= edgeLength
-                case .Left: position?.x -= edgeLength
-                case .Top: position?.y += edgeLength
-                case .Bottom: position?.y -= edgeLength
-            }
-            //if cube is within bounds of area, add to view
-            var checkerString: String = getStringOfPosition(position!)
-            checkerString.removeLast()
-            if(!containsInFrame(design: currentDesign, subStr: checkerString)){
-                if(storeNewCubePosition(position!)){
-                    addItemToPosition(position: position!, texture: selectedTexture)
-                }
-            } else {
-                //Add print statements here for testing purposes
-            }
-        }
-    }
 
     /**
      Places a block at the position specified by the vector and with the texture specified by the index given with respect to the textures array
@@ -644,6 +916,90 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         self.sceneView.scene.rootNode.addChildNode(node)
         //Model has been changed, show that it is no longer saved
         self.modelName.textColor = UIColor.red
+    }
+    
+    func setRootToCamera(blocksAway numberOfBlocksInFrontOfCamera: Int){
+        var num = numberOfBlocksInFrontOfCamera
+        let cameraTransform = sceneView.session.currentFrame?.camera.transform
+//        print(cameraTransform)
+        let cameraPosition = cameraTransform?.position()
+//        print(cameraPosition)
+//        //TODO: Use angles to actually set new root in front of camera
+//          let cameraAngles = sceneView.session.currentFrame?.camera.eulerAngles
+//          let pitch = cameraAngles?.x
+//          let yaw = cameraAngles?.y
+//          let roll = cameraAngles?.z
+        
+        //set root to new position
+        var cameraDirection = deviceOrientation().firstIndex(of: 0)
+//        print("Camera:", cameraDirection)
+        //Front = 0 - Top = 1 - Right = 2 - Back = 3 - Bottom = 4 - Left = 5
+        if [0, 1, 2].contains(cameraDirection) { num *= -1; cameraDirection! += 3}
+        
+        var vexX = cameraPosition!.x
+        var vexY = cameraPosition!.y
+        var vexZ = cameraPosition!.z
+        
+        if cameraDirection == 3 {
+            vexZ += (edgeLength * Float(num))
+        } else if cameraDirection == 4 {
+            vexY += (edgeLength * Float(num))
+        } else if cameraDirection == 5 {
+           vexX += (edgeLength * Float(num))
+       }
+        
+        rootPosition = SCNVector3(CGFloat(vexX), CGFloat(vexY), CGFloat(vexZ))
+    }
+    
+    func placeBlockAt(x: Int, y: Int, z: Int, texture: Int){
+        //Get root position
+        var rPos: SCNVector3
+        if(rootPosition != nil){
+            //UNWRAP optional vector: rootPosition
+            rPos = rootPosition!
+        } else {
+            setRootToCamera(blocksAway: 5)
+            rPos = rootPosition!
+        }
+        
+        //use Coordinates to make vector
+        let posX: Float = rPos.x + Float(x-31)*edgeLength
+        let posY: Float = rPos.y + Float(y-31)*edgeLength
+        let posZ: Float = rPos.z + Float(z-31)*edgeLength
+        let vexy: SCNVector3 = SCNVector3(CGFloat(posX), CGFloat(posY), CGFloat(posZ))
+        addItemToPosition(position: vexy, texture: texture)
+    }
+    func placeBlockObj(block: Block){
+        placeBlockAt(x: block.x, y: block.y, z: block.z, texture: block.texture)
+    }
+    
+    func removeBlockAt(x: Int, y: Int, z: Int){
+        //Get root position
+        var rPos: SCNVector3
+        if(rootPosition != nil){
+            //UNWRAP optional vector: rootPosition
+            rPos = rootPosition!
+        } else {
+            setRootToCamera(blocksAway: -5)
+            rPos = rootPosition!
+        }
+        
+        //use Coordinates to make vector
+        let posX: Float = rPos.x + Float(x-31)*edgeLength
+        let posY: Float = rPos.y + Float(y-31)*edgeLength
+        let posZ: Float = rPos.z + Float(z-31)*edgeLength
+        let vexy: SCNVector3 = SCNVector3(CGFloat(posX), CGFloat(posY), CGFloat(posZ))
+        
+        for childNode in sceneView.scene.rootNode.childNodes {
+            if ((childNode.geometry?.description.contains("SCNBox")) ?? false) {
+                if SCNVector3EqualToVector3(childNode.position, vexy) {
+                    childNode.removeFromParentNode()
+                }
+            }
+        }
+    }
+    func removeBlockObj(block: Block){
+        removeBlockAt(x: block.x, y: block.y, z: block.z)
     }
 
     /**
@@ -740,7 +1096,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
 
     /**
-     Removes all occurences of a block's string representation within a design String. This function only checks within four character frames so that only requested blocks are removed
+     Removes all occurrences of a block's string representation within a design String. This function only checks within four character frames so that only requested blocks are removed
      - Parameter design: The design String which the function is checking to remove from
      - Parameter subStr: The String for the block the function is looking for to remove
      - Returns: A String of the new design String with all occurences of the searched for block removed
@@ -767,40 +1123,6 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
         return newString
     }
-    
-    /**
-     This function detects when a user long taps on a block and deletes that block from the view and the storing design string
-     - Parameter gesture: The user long press gesture
-     */
-    @objc
-    func didLongTap(_ gesture: UILongPressGestureRecognizer) {
-        
-        if(/*gesture.state == UIGestureRecognizer.State.began && */NSDate().timeIntervalSince1970 - 0.25 > time){
-            time = NSDate().timeIntervalSince1970
-            
-            let sceneViewTappedOn = gesture.view as! ARSCNView
-            let touchCoordinates = gesture.location(in: sceneViewTappedOn)
-            let hitTestResult = sceneView.hitTest(touchCoordinates, options: nil)
-            
-            guard let node = hitTestResult.first?.node else { return }
-            
-            //check if box if being deleted
-            if(node.description.contains("SCNBox")){
-                //remove node from string storage
-                let position: SCNVector3 = node.position
-                var str: String = getStringOfPosition(position)
-                str.removeLast()
-                //remove all occurences (within 4 char frame)
-                currentDesign = removeInFrame(design: currentDesign, subStr: str)
-                
-            }
-            
-            node.removeFromParentNode()
-            self.modelName.textColor = UIColor.red
-        }
-        
-    }
-    
     
     /**
      Takes in design String and a root position in the real world, and builds the design into the view
@@ -917,5 +1239,12 @@ extension ViewController: LoadDesignDelegate, SelectedMaterialDelegate {
     //call function within to change selected Material
     func materialSelected(index: Int) {
         innerChangeMaterial(index: index)
+    }
+}
+
+//Code from Stack Overflow to get SCNVector3 from a matrix given by ARCamera
+extension matrix_float4x4 {
+    func position() -> SCNVector3 {
+        return SCNVector3(columns.3.x, columns.3.y, columns.3.z)
     }
 }
