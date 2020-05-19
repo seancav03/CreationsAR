@@ -91,6 +91,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         //add longTap detection for deleting
         let longTapGesture = UILongPressGestureRecognizer(target: self, action: #selector(didLongTap(_:)))
         longTapGesture.allowableMovement = 5
+        longTapGesture.minimumPressDuration = 0.15
         sceneView.addGestureRecognizer(longTapGesture)
         
     //Swipe Gestures
@@ -137,9 +138,31 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     
     //MARK: MINI GAMES
     
+    /**
+    This function sets up for and starts the snake game
+    */
     @objc
     func startTheGame(_ gesture: UITapGestureRecognizer){
-        startSnake()
+        //Make Sure space is cleared
+        var spaceIsClear: Bool = true
+        for childNode in sceneView.scene.rootNode.childNodes {
+            if ((childNode.geometry?.description.contains("SCNBox")) ?? false) {
+                spaceIsClear = false
+            }
+        }
+        
+        if spaceIsClear {
+            startSnake()
+        } else {
+            let alert = UIAlertController(title: "Unsafe Build Space", message: "Save and Clear the space before starting Snake", preferredStyle: .alert)
+            let ok = UIAlertAction(title: "OK", style: .default) { (action:UIAlertAction!) in
+                //Nothing to do
+            }
+            alert.addAction(ok)
+            self.present(alert, animated: true, completion: nil)
+            //abort saving
+            return
+        }
     }
     
     var blockModificationAllowed = true
@@ -150,30 +173,60 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     //Front = 0 - Top = 1 - Right = 2 - Back = 3 - Bottom = 4 - Left = 5
     var direction = 0
 //    var startingOrientation: [Int] = [0, 1, 2, 3, 4, 5]
+    var target: Block = Block(x: 31, y: 36, z: 31, texture: 3)
     
+    var gameSpace = 6
+    var boundaryBlocks: [Block] = []
+    var boundaryFaces: [SCNNode] = []
+    
+    /**
+    This function starts snake if it isn't running, or stops and ends the game if it is running
+    */
     func startSnake(){
         
         if blockModificationAllowed {
+            blockModificationAllowed = false
             //Game isn't already started, so start game
+            setRootToCamera(blocksAway: 10)
+            self.modelName.textColor = UIColor.blue
+            self.modelName.text = "Score: 0"
             direction = 1
-            targetLength = 5
+            targetLength = 3
             length = 0
             snakeParts = []
+            target = Block(x: 31, y: 31 + (gameSpace - 2), z: 31, texture: 3)
             
-            blockModificationAllowed = false
-            setRootToCamera(blocksAway: 10)
+            //Add boundries
+            createBoundaries()
+            for b in boundaryBlocks {
+                b.setTransparency(0.6)
+                placeBlockObj(block: b)
+            }
+            
 //            startingOrientation = deviceOrientation()
             snakeParts.append(Block(x: 31, y: 31, z: 31, texture: 1))
             placeBlockObj(block: snakeParts.last!)
             length += 1
-            timer = Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(snakeTimer), userInfo: nil, repeats: true)
+            placeBlockObj(block: target)
+            timer = Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(snakeTimer), userInfo: nil, repeats: true)
             
         } else {
             //end game
+            self.modelName.text = "Untitled Design"
+            self.modelName.textColor = UIColor.red
             for b in snakeParts {
                 removeBlockObj(block: b)
             }
+            removeBlockObj(block: target)
             snakeParts = []
+            for b in boundaryBlocks {
+                removeBlockObj(block: b)
+            }
+            boundaryBlocks = []
+            for wall in boundaryFaces {
+                wall.removeFromParentNode()
+            }
+            boundaryFaces = []
             
             timer.invalidate()
             timer = Timer()
@@ -183,36 +236,212 @@ class ViewController: UIViewController, ARSCNViewDelegate {
 
         
     }
+    /**
+    This function makes the box that the snake game is contained in
+    */
+    func createBoundaries(){
+    //set 1
+        //column1
+        var x = 31 - (gameSpace + 1)
+        var y = 31 - (gameSpace + 1)
+        var z = 31 - (gameSpace + 1)
+        for i in 0...(gameSpace*2 + 2) {
+            boundaryBlocks.append(Block(x: x, y: y+i, z: z, texture: 4))
+        }
+        //column2
+        x = 31 + (gameSpace + 1)
+        z = 31 - (gameSpace + 1)
+        for i in 0...(gameSpace*2 + 2) {
+            boundaryBlocks.append(Block(x: x, y: y+i, z: z, texture: 4))
+        }
+        //column3
+        x = 31 - (gameSpace + 1)
+        z = 31 + (gameSpace + 1)
+        for i in 0...(gameSpace*2 + 2) {
+            boundaryBlocks.append(Block(x: x, y: y+i, z: z, texture: 4))
+        }
+        //column4
+        x = 31 + (gameSpace + 1)
+        z = 31 + (gameSpace + 1)
+        for i in 0...(gameSpace*2 + 2) {
+            boundaryBlocks.append(Block(x: x, y: y+i, z: z, texture: 4))
+        }
+    //set 2
+        //column1
+        x = 31 - (gameSpace + 1)
+        y = 31 - (gameSpace + 1)
+        z = 31 - (gameSpace + 1)
+        for i in 1...(gameSpace*2 + 1) {
+            boundaryBlocks.append(Block(x: x+i, y: y, z: z, texture: 4))
+        }
+        //column2
+        y = 31 + (gameSpace + 1)
+        z = 31 - (gameSpace + 1)
+        for i in 1...(gameSpace*2 + 1) {
+            boundaryBlocks.append(Block(x: x+i, y: y, z: z, texture: 4))
+        }
+        //column3
+        y = 31 - (gameSpace + 1)
+        z = 31 + (gameSpace + 1)
+        for i in 1...(gameSpace*2 + 1) {
+            boundaryBlocks.append(Block(x: x+i, y: y, z: z, texture: 4))
+        }
+        //column4
+        y = 31 + (gameSpace + 1)
+        z = 31 + (gameSpace + 1)
+        for i in 1...(gameSpace*2 + 1) {
+            boundaryBlocks.append(Block(x: x+i, y: y, z: z, texture: 4))
+        }
+    //set 3
+        //column1
+        x = 31 - (gameSpace + 1)
+        y = 31 - (gameSpace + 1)
+        z = 31 - (gameSpace + 1)
+        for i in 1...(gameSpace*2 + 1) {
+            boundaryBlocks.append(Block(x: x, y: y, z: z+i, texture: 4))
+        }
+        //column2
+        x = 31 + (gameSpace + 1)
+        y = 31 - (gameSpace + 1)
+        for i in 1...(gameSpace*2 + 1) {
+            boundaryBlocks.append(Block(x: x, y: y, z: z+i, texture: 4))
+        }
+        //column3
+        x = 31 - (gameSpace + 1)
+        y = 31 + (gameSpace + 1)
+        for i in 1...(gameSpace*2 + 1) {
+            boundaryBlocks.append(Block(x: x, y: y, z: z+i, texture: 4))
+        }
+        //column4
+        x = 31 + (gameSpace + 1)
+        y = 31 + (gameSpace + 1)
+        for i in 1...(gameSpace*2 + 1) {
+            boundaryBlocks.append(Block(x: x, y: y, z: z+i, texture: 4))
+        }
+        
+        //face1
+        let rPos = rootPosition!
+        var posX: Float = rPos.x + Float(gameSpace + 1)*edgeLength
+        var posY: Float = rPos.y
+        var posZ: Float = rPos.z
+        var vexy: SCNVector3 = SCNVector3(CGFloat(posX), CGFloat(posY), CGFloat(posZ))
+        var node = makeFace(position: vexy, orientation: 0)
+        boundaryFaces.append(node)
+        //face2
+        posX = rPos.x - Float(gameSpace + 1)*edgeLength
+        vexy = SCNVector3(CGFloat(posX), CGFloat(posY), CGFloat(posZ))
+        node = makeFace(position: vexy, orientation: 0)
+        boundaryFaces.append(node)
+        //face3
+        posX = rPos.x
+        posY = rPos.y + Float(gameSpace + 1)*edgeLength
+        vexy = SCNVector3(CGFloat(posX), CGFloat(posY), CGFloat(posZ))
+        node = makeFace(position: vexy, orientation: 1)
+        boundaryFaces.append(node)
+        //face4
+        posY = rPos.y - Float(gameSpace + 1)*edgeLength
+        vexy = SCNVector3(CGFloat(posX), CGFloat(posY), CGFloat(posZ))
+        node = makeFace(position: vexy, orientation: 1)
+        boundaryFaces.append(node)
+        //face5
+        posY = rPos.y
+        posZ = rPos.z + Float(gameSpace + 1)*edgeLength
+        vexy = SCNVector3(CGFloat(posX), CGFloat(posY), CGFloat(posZ))
+        node = makeFace(position: vexy, orientation: 2)
+        boundaryFaces.append(node)
+        //face6
+        posZ = rPos.z - Float(gameSpace + 1)*edgeLength
+        vexy = SCNVector3(CGFloat(posX), CGFloat(posY), CGFloat(posZ))
+        node = makeFace(position: vexy, orientation: 2)
+        boundaryFaces.append(node)
+    }
     
-    //directions: Up = 0 - Right = 1 - Down = 2 - Left = 3
+    /**
+    This function makes a box face and adds it to the scene
+     - Parameter position: Vector in space for center of box face
+     - Parameter orientation: which direction for the flat wall to face: 0 = x, 1 = y, 2 = z
+    */
+    func makeFace(position: SCNVector3, orientation: Int) -> SCNNode {
+        //make box
+        var dim = [edgeLength * Float((gameSpace * 2 + 1)), edgeLength * Float((gameSpace * 2 + 1)), edgeLength * Float((gameSpace * 2 + 1))]
+        dim[orientation] = edgeLength
+        let box = SCNBox(width: CGFloat(dim[0]), height: CGFloat(dim[1]), length: CGFloat(dim[2]), chamferRadius: 0)
+        //set correct material
+        let material = SCNMaterial()
+        material.diffuse.contents = UIImage(named: textures[0])
+        material.transparency = CGFloat(0.0)
+        box.materials = [material]
+        
+        //set node as box at position
+        let node = SCNNode(geometry: box)
+        node.position = position
+        //lighting stuff
+        node.castsShadow = true
+        self.sceneView.scene.rootNode.addChildNode(node)
+        return node
+    }
+    
+    /**
+    This function makes a box face and adds it to the scene
+     - Parameter dir: The direction swaped or tapped: Up = 0 - Right = 1 - Down = 2 - Left = 3 - Tap = 4 - Hold = 5
+    */
     func swiped(dir: Int) {
         //Front = 0 - Top = 1 - Right = 2 - Back = 3 - Bottom = 4 - Left = 5
         let rotation = deviceOrientation()
         let cam = rotation.firstIndex(of: 0)!
-        let top = rotation.firstIndex(of: 1)!
-//        print("Cam:", cam, " Top:", top)
-        
-        let keys = [0: [1: 0, 5: 1, 4: 2, 2: 3], 3: [1: 0, 5: 3, 4: 2, 2: 1], 2: [1: 0, 0: 1, 4: 2, 3: 3], 5: [1: 0, 0:  3, 4: 2, 3: 1]]
-        
-        let val = keys[cam]?[top]
-        //if not a valid orientation, (aka up or down) do nothing
-        if val == nil { return }
-        
-        let lookup = [0: [0: 2, 1: 1, 2: 5, 3: 4], 3: [0: 5, 1: 1, 2: 2, 3: 4], 2: [0: 3, 1: 1, 2: 0, 3: 4], 5: [0: 0, 1: 1, 2: 3, 3: 4]]
-        
-        let adjusted = (val! + dir) % 4
-        
-        let output = (lookup[cam]?[adjusted])!
-        
-        //make sure the snake can turn in this direction
-        if output != direction && (output + 3) % 6 != direction {
-            direction = output
+        var output = -1;
+        if(dir <= 3){
+            let top = rotation.firstIndex(of: 1)!
+    //        print("Cam:", cam, " Top:", top)
+            //cam: top:
+            let keys = [0: [1: 0, 5: 1, 4: 2, 2: 3], 3: [1: 0, 5: 3, 4: 2, 2: 1], 2: [1: 0, 0: 1, 4: 2, 3: 3], 5: [1: 0, 0:  3, 4: 2, 3: 1]]
+            
+            let val = keys[cam]?[top]
+            //if not a valid orientation, (aka up or down) do nothing
+            if val == nil { return }
+            
+            let lookup = [0: [0: 2, 1: 1, 2: 5, 3: 4], 3: [0: 5, 1: 1, 2: 2, 3: 4], 2: [0: 3, 1: 1, 2: 0, 3: 4], 5: [0: 0, 1: 1, 2: 3, 3: 4]]
+            
+            let adjusted = (val! + dir) % 4
+            
+            output = (lookup[cam]?[adjusted])!
+        } else {
+            let vals = [4: [0: 3, 1: 4, 2: 5, 3: 0, 4: 1, 5: 2], 5: [0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5:5]];
+            output = (vals[dir]?[cam])!
         }
         
+        //make sure this isn't a turn directly back into itself
+        if(snakeParts.count >= 2){
+            let temp1: Block = snakeParts.last!
+            let temp2: Block = snakeParts[snakeParts.count - 2]
+            //Front = 0 - Top = 1 - Right = 2 - Back = 3 - Bottom = 4 - Left = 5
+            switch output {
+            case 1:
+                if temp1.y-temp2.y == 0 { direction = output }
+            case 2:
+                if temp1.x-temp2.x == 0 { direction = output }
+            case 3:
+                if temp1.z-temp2.z == 0 { direction = output }
+            case 4:
+                if temp1.y-temp2.y == 0 { direction = output }
+            case 5:
+                if temp1.x-temp2.x == 0 { direction = output }
+            case 0:
+                if temp1.z-temp2.z == 0 { direction = output }
+            default:
+                break
+            }
+            
+            
+        }
     }
     
+    /**
+    This fuction is called at regular intervals by a timer to move the snake game forward one time step
+    */
     @objc
     func snakeTimer(){
+    //movement
         //entered in reverse order to match cube orientations
         var spot: [Int] = [snakeParts.last!.z, snakeParts.last!.y, snakeParts.last!.x]
         var tempDir = direction
@@ -224,19 +453,124 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             tempDir -= 3
         }
         spot[tempDir] += mag
+        //check for collision with self
+        if blockAtCoordinates(x: spot[2], y: spot[1], z: spot[0]) {
+            //You Lost - end game
+            startSnake()
+            return
+        }
+        //check for leaving boundry
+        if spot[0] > 31+gameSpace || spot[0] < 31-gameSpace || spot[1] > 31+gameSpace || spot[1] < 31-gameSpace || spot[2] > 31+gameSpace || spot[2] < 31-gameSpace {
+            //You Lost - end game
+            startSnake()
+            return
+        }
+        //check for hitting target
+        var hitTarget = false
+        if target.x == spot[2] && target.y == spot[1] && target.z == spot[0] {
+            //hit target. Add to length and reset target position after
+            hitTarget = true
+            targetLength += 1
+            removeBlockObj(block: target)
+            if targetLength == 5 {
+                timer.invalidate()
+                timer = Timer.scheduledTimer(timeInterval: 0.5, target: self, selector: #selector(snakeTimer), userInfo: nil, repeats: true)
+            } else if targetLength == 10 {
+                timer.invalidate()
+                timer = Timer.scheduledTimer(timeInterval: 0.42, target: self, selector: #selector(snakeTimer), userInfo: nil, repeats: true)
+            } else if targetLength == 28 {
+               timer.invalidate()
+               timer = Timer.scheduledTimer(timeInterval: 0.35, target: self, selector: #selector(snakeTimer), userInfo: nil, repeats: true)
+            } else if targetLength == 53 {
+                timer.invalidate()
+                timer = Timer.scheduledTimer(timeInterval: 0.3, target: self, selector: #selector(snakeTimer), userInfo: nil, repeats: true)
+            } else if targetLength == 103 {
+                timer.invalidate()
+                timer = Timer.scheduledTimer(timeInterval: 0.25, target: self, selector: #selector(snakeTimer), userInfo: nil, repeats: true)
+            }
+        }
+        
         //flipped to undo reverse order from above
         snakeParts.append(Block(x: spot[2], y: spot[1], z: spot[0], texture: 1))
         placeBlockObj(block: snakeParts.last!)
         length += 1
+        
+        //Add to Score
+        self.modelName.text = "Score: " + String(targetLength-3)
         
         while length > targetLength {
             removeBlockObj(block: snakeParts.first!)
             snakeParts.removeFirst()
             length -= 1
         }
+
+        //Add Random Target Block if last one was hit already
+        if hitTarget {
+            var x: Int
+            var y: Int
+            var z: Int
+            repeat {
+                x = Int.random(in: (31-gameSpace)...(31+gameSpace))
+                y = Int.random(in: (31-gameSpace)...(31+gameSpace))
+                z = Int.random(in: (31-gameSpace)...(31+gameSpace))
+            } while blockAtCoordinates(x: x, y: y, z: z)
+            target = Block(x: x, y: y, z: z, texture: 3)
+            placeBlockObj(block: target)
+        }
+        
+        //check for nearing a wall
+        let pos: [Int] = [spot[2], spot[1], spot[0]]
+        var wallVals: [Int] = [0, 0, 0, 0, 0, 0]
+        wallVals[0] = abs((31+gameSpace) - pos[0])
+        wallVals[1] = abs((31-gameSpace) - pos[0])
+        wallVals[2] = abs((31+gameSpace) - pos[1])
+        wallVals[3] = abs((31-gameSpace) - pos[1])
+        wallVals[4] = abs((31+gameSpace) - pos[2])
+        wallVals[5] = abs((31-gameSpace) - pos[2])
+        
+        //Front = 0 - Top = 1 - Right = 2 - Back = 3 - Bottom = 4 - Left = 5
+        let dirConv: [Int: Int] = [0: 5, 1: 2, 2: 1, 3: 4, 4: 3, 5: 0]
+        
+        for i in 0...5 {
+            if wallVals[i] > 5 || dirConv[i] != direction {
+                if wallVals[i] < 5 && dirConv[i] != direction {
+//                    print("Direction:", direction, "- Wall:", i)
+                }
+                let material = SCNMaterial()
+                material.diffuse.contents = UIImage(named: textures[4])
+                material.transparency = CGFloat(0.0)
+                boundaryFaces[i].geometry?.materials = [material]
+            } else {
+                let material = SCNMaterial()
+                material.diffuse.contents = UIImage(named: textures[0])
+                //Use dictionary to calculate transparency values based on distance
+                let transparencyVals: [Int: Float] = [5: 0.1, 4: 0.2, 3: 0.34, 2: 0.48, 1: 0.65, 0: 0.85]
+                material.transparency = CGFloat(transparencyVals[wallVals[i]]!)
+                boundaryFaces[i].geometry?.materials = [material]
+            }
+        }
         
     }
+    /**
+    This function checks to see if a block is already at this position
+     - Parameter x: The X-Coordinate
+     - Parameter y: The Y-Coordinate
+     - Parameter z: The Z-Coordinate
+     - Returns: True if block is at coordinates, false if not
+    */
+    func blockAtCoordinates(x: Int, y: Int, z: Int) -> Bool {
+        for block in snakeParts {
+            if block.x == x && block.y == y && block.z == z {
+                return true
+            }
+        }
+        return false
+    }
     
+    /**
+    This function gets the 3D oritentation of the device. This function itself converts euler angles to approximate pitach, yaw, and role vaules within the orthogonal direction.
+     - Returns: An array of integers. Each spot in the Array represents a side of a cude orientated with the world's coordinate system. The number at each spot is the side of the device facing that direction: Front = 0 - Top = 1 - Right = 2 - Back = 3 - Bottom = 4 - Left = 5  (<-- Both for Index of array and device face number in that spot)
+    */
     func deviceOrientation() -> [Int] {
         //Round angles to orthogonal directions
         var pitch = sceneView.session.currentFrame?.camera.eulerAngles.x ?? 0
@@ -260,11 +594,16 @@ class ViewController: UIViewController, ARSCNViewDelegate {
 //        print("Camera:", calcCameraOrientation(pitch: Int(pitch), yaw: Int(yaw), roll: Int(roll)))
         return calcDeviceOrientation(pitch: Int(pitch), yaw: Int(yaw), roll: Int(roll))
     }
-    
+    /**
+    This function helps the function deviceOrientation to get the orientation of the device from rounded pitch, yaw, and roll in space.
+     - Parameter pitch: device pitch as an int 0-3, with 0 = 0 degrees, 1 = 90 degrees, 2 = 180 degrees, & 3 = 270 degrees
+     - Parameter yaw: device yaw as an int 0-3, with 0 = 0 degrees, 1 = 90 degrees, 2 = 180 degrees, & 3 = 270 degrees
+     - Parameter roll: device roll as an int 0-3, with 0 = 0 degrees, 1 = 90 degrees, 2 = 180 degrees, & 3 = 270 degrees
+     - Returns: An array of integers. Each spot in the Array represents a side of a cude orientated with the world's coordinate system. The number at each spot is the side of the device facing that direction: Front = 0 - Top = 1 - Right = 2 - Back = 3 - Bottom = 4 - Left = 5  (<-- Both for Index of array and device face number in that spot)
+    */
     func calcDeviceOrientation(pitch p: Int, yaw y: Int, roll r: Int) -> [Int]{
         
         //Works for Every Case except Camera Pointed Upwards/Downwards, for some reason I'm not sure
-        
         
         var pitch = p
         var yaw = y
@@ -291,44 +630,80 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
         return cube
     }
+    /**
+    Make a rotational translation of the cube representation in space, in the pitch direction
+     - Parameter cube: An array representing an orientation in space
+     - Returns: An array of integers representing the new orientation of the cube. Each spot in the Array represents a side of a cude orientated with the world's coordinate system. The number at each spot is the side of the device facing that direction: Front = 0 - Top = 1 - Right = 2 - Back = 3 - Bottom = 4 - Left = 5  (<-- Both for Index of array and device face number in that spot)
+    */
     func pitchCube(cube: [Int]) -> [Int] {
 //        let newCube: [Int] = [cube[4], cube[0], cube[2], cube[1], cube[3], cube[5]]
         let newCube: [Int] = [cube[4], cube[0], cube[2], cube[1], cube[3], cube[5]]
         return newCube
     }
+    /**
+    Make a rotational translation of the cube representation in space, in the yaw direction
+     - Parameter cube: An array representing an orientation in space
+     - Returns: An array of integers representing the new orientation of the cube. Each spot in the Array represents a side of a cude orientated with the world's coordinate system. The number at each spot is the side of the device facing that direction: Front = 0 - Top = 1 - Right = 2 - Back = 3 - Bottom = 4 - Left = 5  (<-- Both for Index of array and device face number in that spot)
+    */
     func yawCube(cube: [Int]) -> [Int] {
         let newCube: [Int] = [cube[5], cube[1], cube[0], cube[2], cube[4], cube[3]]
         return newCube
     }
+    /**
+    Make a rotational translation of the cube representation in space, in the roll direction
+     - Parameter cube: An array representing an orientation in space
+     - Returns: An array of integers representing the new orientation of the cube. Each spot in the Array represents a side of a cude orientated with the world's coordinate system. The number at each spot is the side of the device facing that direction: Front = 0 - Top = 1 - Right = 2 - Back = 3 - Bottom = 4 - Left = 5  (<-- Both for Index of array and device face number in that spot)
+    */
     func rollCube(cube: [Int]) -> [Int] {
         let newCube: [Int] = [cube[0], cube[5], cube[1], cube[3], cube[2], cube[4]]
 //        let newCube: [Int] = [cube[0], cube[2], cube[4], cube[3], cube[5], cube[1]]
         return newCube
     }
-    
+    ///Class for storing the information required for representing a block in the AR space
     class Block {
         var x: Int
         var y: Int
         var z: Int
         var texture: Int
+        private var transparency: Float = 1.0
+        
         init(x xIn: Int, y yIn: Int, z zIn: Int, texture textureIn: Int){
             x = xIn
             y = yIn
             z = zIn
             texture = textureIn
         }
+        /**
+        Change cube trasparency if it is a valid number
+         - Parameter transp: alpha value
+        */
+        func setTransparency(_ transp: Float){
+            if(transp >= 0 && transp <= 1){
+                transparency = transp
+            }
+        }
+        /**
+        Get this cube's transparency
+         - Returns: The transparency value as a Float
+        */
+        func getTransparency() -> Float { return transparency}
     }
     
     //MARK: - Buttons -> 2nd V Controller
+    /**
+    Open the materials view window
+     - Parameter sender: The click on the button as connected with the storyboard
+    */
     @IBAction func toMaterialsView(_ sender: Any) {
-         
-        //open grid view here
-        grid = self.storyboard!.instantiateViewController(withIdentifier: "MaterialsCollectionViewController") as? MaterialsCollectionViewController
-        //prepare
-        grid?.thisDelegate = self
+        if blockModificationAllowed {
+            //open grid view here
+            grid = self.storyboard!.instantiateViewController(withIdentifier: "MaterialsCollectionViewController") as? MaterialsCollectionViewController
+            //prepare
+            grid?.thisDelegate = self
 
-        //transition
-        self.present(grid!, animated: true, completion: nil)
+            //transition
+            self.present(grid!, animated: true, completion: nil)
+        }
     }
     
     /**
@@ -337,30 +712,48 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     */
     @objc
     func loadNewModel(_ gesture: UITapGestureRecognizer) {
-        //open table view here
-        table = self.storyboard!.instantiateViewController(withIdentifier: "MenuViewController") as? MenuViewController
-        //prepare
-        table?.theDelegate = self
-        
-        //transition
-        self.present(table!, animated: true, completion: nil)
+        if blockModificationAllowed {
+            //open table view here
+            table = self.storyboard!.instantiateViewController(withIdentifier: "MenuViewController") as? MenuViewController
+            //prepare
+            table?.theDelegate = self
+            
+            //transition
+            self.present(table!, animated: true, completion: nil)
+        }
     }
     
     //MARK: - Buttons/Gestures
     
     //For Games
+    /**
+    Detect swipe on the screen and pass it on to the swipe detection function in the snake game with the direction UP
+    - Parameter gesture: User's Swipe Gesture
+    */
     @objc
     func swipedUp(_ gesture: UISwipeGestureRecognizer){
         swiped(dir: 0)
     }
+    /**
+    Detect swipe on the screen and pass it on to the swipe detection function in the snake game with the direction DOWN
+    - Parameter gesture: User's Swipe Gesture
+    */
     @objc
     func swipedDown(_ gesture: UISwipeGestureRecognizer){
         swiped(dir: 2)
     }
+    /**
+    Detect swipe on the screen and pass it on to the swipe detection function in the snake game with the direction LEFT
+    - Parameter gesture: User's Swipe Gesture
+    */
     @objc
     func swipedLeft(_ gesture: UISwipeGestureRecognizer){
         swiped(dir: 3)
     }
+    /**
+    Detect swipe on the screen and pass it on to the swipe detection function in the snake game with the direction RIGHT
+    - Parameter gesture: User's Swipe Gesture
+    */
     @objc
     func swipedRight(_ gesture: UISwipeGestureRecognizer){
         swiped(dir: 1)
@@ -377,6 +770,10 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             let touchCoordinates = gesture.location(in: sceneViewTappedOn)
             
             placeBlock(sceneViewTappedOn: sceneViewTappedOn, touchCoordinates: touchCoordinates)
+        } else {
+            //game mechanics:
+//            print("tapped")
+            swiped(dir: 4)
         }
     }
     
@@ -394,11 +791,18 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             
                     removeBlock(sceneViewTappedOn: sceneViewTappedOn, touchCoordinates: touchCoordinates)
                 }
+        } else {
+            swiped(dir: 5)
         }
     }
     
     //MARK: - LOGIC
     
+    /**
+    Remove block from the AR Scene scene using raycasting based on a tap by the user on the screen.
+    - Parameter sceneViewTappedOn: The AR Scene View for the block to be removed from
+    - Parameter touchCoordinates: The location on the screen at which the user tapped
+    */
     func removeBlock(sceneViewTappedOn: ARSCNView, touchCoordinates: CGPoint) {
         let hitTestResult = sceneView.hitTest(touchCoordinates, options: nil)
         
@@ -418,7 +822,11 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         node.removeFromParentNode()
         self.modelName.textColor = UIColor.red
     }
-    
+    /**
+    Add block to the AR Scene on surface or block face tapped on by the user, as found in the scene by raycasting
+    - Parameter sceneViewTappedOn: The AR Scene View for the block to be added to
+    - Parameter touchCoordinates: The location on the screen at which the user tapped
+    */
     func placeBlock(sceneViewTappedOn: ARSCNView, touchCoordinates: CGPoint) {
         
         //check for pressed cube
@@ -513,7 +921,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             }
                 
             //call method to add item
-            addItemToPosition(position: position, texture: selectedTexture)
+            addItemToPosition(position: position, texture: selectedTexture, transparency: 1)
             return
         }
         
@@ -541,14 +949,17 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             checkerString.removeLast()
             if(!containsInFrame(design: currentDesign, subStr: checkerString)){
                 if(storeNewCubePosition(position!)){
-                    addItemToPosition(position: position!, texture: selectedTexture)
+                    addItemToPosition(position: position!, texture: selectedTexture, transparency: 1)
                 }
             } else {
                 //Add print statements here for testing purposes
             }
         }
     }
-    
+    /**
+    Changed the selected material. This function is called by the delagate from the materials view secondary view controller
+    - Parameter index: The index for the material selected
+    */
     func innerChangeMaterial(index: Int){
         selectedTexture = index
         currentMaterial.setBackgroundImage(UIImage(named: textures[selectedTexture]), for: UIControl.State.normal)
@@ -604,7 +1015,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
 //        print("cur Des: \(currentDesign)")
         if currentDesign != "" {
             //set up Alert to ask user if they want to save the design
-            let askSave = UIAlertController(title: "Save Design?", message: "Press 'Save' to Save. Otherwise, data will be lost", preferredStyle: UIAlertController.Style.alert)
+            let askSave = UIAlertController(title: "Save Current Design?", message: "Press 'Save' to Save. Otherwise, data will be lost", preferredStyle: UIAlertController.Style.alert)
             askSave.addAction(UIAlertAction(title: "Save", style: .default, handler: { (action: UIAlertAction!) in
                     //Code here is for if user presses save. Clear after
                     self.save(clearAfter: true)
@@ -893,12 +1304,13 @@ class ViewController: UIViewController, ARSCNViewDelegate {
      - Parameter position: The vector for where to place the block in the real world with AR
      - Parameter texture: The index in the textures array for which texture the block should have
      */
-    func addItemToPosition(position: SCNVector3, texture: Int) {
+    func addItemToPosition(position: SCNVector3, texture: Int, transparency: Float) {
         //make box
         let box = SCNBox(width: CGFloat(edgeLength), height: CGFloat(edgeLength), length: CGFloat(edgeLength), chamferRadius: 0)
         //set correct material
         let material = SCNMaterial()
         material.diffuse.contents = UIImage(named: textures[texture])
+        material.transparency = CGFloat(transparency)
         box.materials = [material]
         
         //TESTING: lighting stuff
@@ -914,10 +1326,15 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         //lighting stuff
         node.castsShadow = true
         self.sceneView.scene.rootNode.addChildNode(node)
-        //Model has been changed, show that it is no longer saved
-        self.modelName.textColor = UIColor.red
+        //Model has been changed, so if building, show that it is no longer saved
+        if blockModificationAllowed {
+            self.modelName.textColor = UIColor.red
+        }
     }
-    
+    /**
+    Sets the root for the world (where are blocks are positioned relative to) some distance in front of the camera (along closest orthogonal direction)
+    - Parameter blocksAway: Number of block lengths away from the camera to place the root
+    */
     func setRootToCamera(blocksAway numberOfBlocksInFrontOfCamera: Int){
         var num = numberOfBlocksInFrontOfCamera
         let cameraTransform = sceneView.session.currentFrame?.camera.transform
@@ -934,8 +1351,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         var cameraDirection = deviceOrientation().firstIndex(of: 0)
 //        print("Camera:", cameraDirection)
         //Front = 0 - Top = 1 - Right = 2 - Back = 3 - Bottom = 4 - Left = 5
-        if [0, 1, 2].contains(cameraDirection) { num *= -1; cameraDirection! += 3}
-        
+        if [0, 4, 2].contains(cameraDirection) { num *= -1 }
+        if [0, 1, 2].contains(cameraDirection) { cameraDirection! += 3 }
         var vexX = cameraPosition!.x
         var vexY = cameraPosition!.y
         var vexZ = cameraPosition!.z
@@ -950,8 +1367,15 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         rootPosition = SCNVector3(CGFloat(vexX), CGFloat(vexY), CGFloat(vexZ))
     }
-    
-    func placeBlockAt(x: Int, y: Int, z: Int, texture: Int){
+    /**
+    Places a block at the desired coordinates with the specified texture and transparency
+    - Parameter x: The X-Coordinate where the block should be placed
+    - Parameter y: The Y-Coordinate where the block should be placed
+    - Parameter z: The Z-Coordinate where the block should be placed
+    - Parameter texture: The index for the texture for the block
+    - Parameter transparency: The alpha value for the block's transparency
+    */
+    func placeBlockAt(x: Int, y: Int, z: Int, texture: Int, transparency: Float){
         //Get root position
         var rPos: SCNVector3
         if(rootPosition != nil){
@@ -967,12 +1391,21 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         let posY: Float = rPos.y + Float(y-31)*edgeLength
         let posZ: Float = rPos.z + Float(z-31)*edgeLength
         let vexy: SCNVector3 = SCNVector3(CGFloat(posX), CGFloat(posY), CGFloat(posZ))
-        addItemToPosition(position: vexy, texture: texture)
+        addItemToPosition(position: vexy, texture: texture, transparency: transparency)
     }
+    /**
+    Places block using function above (placeBlockAt) by getting alll the needed parameter out of the block object
+    - Parameter block: The block object storing all needed values
+    */
     func placeBlockObj(block: Block){
-        placeBlockAt(x: block.x, y: block.y, z: block.z, texture: block.texture)
+        placeBlockAt(x: block.x, y: block.y, z: block.z, texture: block.texture, transparency: block.getTransparency())
     }
-    
+    /**
+    Removes a block at these coordinates
+    - Parameter x: The X-Coordinate where the block should be removed from
+    - Parameter y: The Y-Coordinate where the block should be  removed from
+    - Parameter z: The Z-Coordinate where the block should be  removed from
+    */
     func removeBlockAt(x: Int, y: Int, z: Int){
         //Get root position
         var rPos: SCNVector3
@@ -998,6 +1431,10 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             }
         }
     }
+    /**
+    Removes block using function above (removeBlockAt) by getting alll the needed parameter out of the block object
+    - Parameter block: The block object storing all needed values
+    */
     func removeBlockObj(block: Block){
         removeBlockAt(x: block.x, y: block.y, z: block.z)
     }
@@ -1147,7 +1584,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
                 let material = four[3]
                 let vexy: SCNVector3 = SCNVector3(CGFloat(posX), CGFloat(posY), CGFloat(posZ))
                 //Try to add item to space
-                addItemToPosition(position: vexy, texture: material)
+                addItemToPosition(position: vexy, texture: material, transparency: 1)
                 cntr = 0
             } else {
                 cntr+=1

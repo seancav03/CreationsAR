@@ -21,7 +21,9 @@ class MaterialsCollectionViewController: UICollectionViewController {
     //for passing back design
     weak var thisDelegate: SelectedMaterialDelegate?
     
-
+    /**
+    Set up the materials view
+    */
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -37,6 +39,10 @@ class MaterialsCollectionViewController: UICollectionViewController {
         self.collectionView.addGestureRecognizer(tap)
     }
     
+    /**
+    Select texture and pass value back to main view controller
+    - Parameter gesture: The tap gesture of the user
+    */
     @objc
     func tapped(_ gesture: UITapGestureRecognizer) {
         let location = gesture.location(in: self.collectionView)
@@ -56,6 +62,7 @@ class MaterialsCollectionViewController: UICollectionViewController {
     */
 
     // MARK: UICollectionViewDataSource
+
 
     override func numberOfSections(in collectionView: UICollectionView) -> Int {
         // #warning Incomplete implementation, return the number of sections
@@ -122,6 +129,7 @@ class MaterialsCollectionViewController: UICollectionViewController {
 
 }
 
+///Extension used to modify layout of the collection view
 extension MaterialsCollectionViewController: UICollectionViewDelegateFlowLayout {
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
         return CGSize(width: (collectionView.frame.width - 30)/4, height: (collectionView.frame.width - 30)/4)
@@ -141,6 +149,7 @@ extension MaterialsCollectionViewController: UICollectionViewDelegateFlowLayout 
 //    }
 }
 
+///Another cell type for the Header which has the required attributes
 class header: UICollectionReusableView {
     
     var label: UILabel = {
